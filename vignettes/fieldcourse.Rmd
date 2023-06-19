@@ -1,0 +1,18 @@
+---
+title: "Data"
+author: "Patrick Bigler"
+date: "2023-06-19"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  '': default
+editor_options:
+  markdown:
+    wrap: 75
+---
+
+
+
+
