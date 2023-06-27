@@ -43,19 +43,19 @@ Reference: Amt für Umwelt (AFU)
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+----------------+-----------------------------------------+
-| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
-+----------------+-----------------------------------------+
-| Altitude:      | 554.5 a.s.l.                            |
-+----------------+-----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2               |
-|                |                                         |
-|                | New Logger: UTC / GMT                   |
-+----------------+-----------------------------------------+
-| Logger Number: | 83                                      |
-+----------------+-----------------------------------------+
-| Code grafana   | d6e2769def35                            |
-+----------------+-----------------------------------------+
++-----------------+-------------------------------------------+
+| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N   |
++-----------------+-------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                              |
++-----------------+-------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                 |
+|                 |                                           |
+|                 | New Logger: UTC / GMT                     |
++-----------------+-------------------------------------------+
+| Logger Number:  | 83                                        |
++-----------------+-------------------------------------------+
+| Code grafana    | d6e2769def35                              |
++-----------------+-------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger at AFU
 
@@ -68,7 +68,7 @@ have the same name as a function from another package).
 
 ```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
 # install and activate all packages we need
-source("../R/packages.R")
+source("../R/general/packages.R")
 
 # We set preferences
 conflicts_prefer(ggplot2::annotate)
@@ -104,7 +104,7 @@ and if yes, where are they?
 
 ```{r handle_missing_values,  warning=FALSE, error=FALSE, message=FALSE}
 # Load the function to handle NAs
-source("../R/function.visualize.na.values.R")
+source("../R/general/function.visualize.na.values.R")
 
 # We check the dataquality of the reference station
 visualize.na.values.without.groups(AFU_ref)
@@ -321,7 +321,7 @@ density-plot. We add ± standard deviation and a dot-dashed zero line
 because we want to determine whether the data is accurate or and precise.
 
 ```{r function, warning=FALSE, error=FALSE, message=FALSE}
-source("../R/plot.functions.R")
+source("../R/general/plot.functions.R")
 ```
 
 ## Line-plot
@@ -439,28 +439,51 @@ densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = F
 ```{r errors}
 NAMES <- c('24h, new-ref', '24h, old-ref', 
            'day-time, new-ref', 'day-time, old-ref', 
-           'night-time, new-ref', 'night-time, old-ref')
+           'night-time, new-ref', 'night-time, old-ref',
+           '24h, new-old', 'day-time, new-old', 'night-time, new-old')
 
-RMSE <- c(round(rmse(AFU_combined$temp_ref, AFU_combined$temp_new_logger), digits = 3),
-          round(rmse(AFU_combined$temp_ref, AFU_combined$temp_old_logger), digits = 3),
-          round(rmse(AFU_day$temp_ref, AFU_day$temp_new_logger), digits = 3),
-          round(rmse(AFU_day$temp_ref, AFU_day$temp_old_logger), digits = 3),
-          round(rmse(AFU_night$temp_ref, AFU_nigh$temp_new_logger), digits = 3),
-          round(rmse(AFU_night$temp_ref, AFU_night$temp_old_logger), digits = 3))
 
-MAE <- c(round(mae(AFU_combined$temp_ref, AFU_combined$temp_new_logger), digits = 3),
-         round(mae(AFU_combined$temp_ref, AFU_combined$temp_old_logger), digits = 3),
-         round(mae(AFU_day$temp_ref, AFU_day$temp_new_logger), digits = 3),
-         round(mae(AFU_day$temp_ref, AFU_day$temp_old_logger), digits = 3),
-         round(mae(AFU_night$temp_ref, AFU_night$temp_new_logger), digits = 3),
-         round(mae(AFU_night$temp_ref, AFU_night$temp_old_logger), digits = 3))
+RMSE <- c(round(sqrt(mean((AFU_combined$temp_new_logger-AFU_combined$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((AFU_combined$temp_old_logger-AFU_combined$temp_ref)^2,na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((AFU_day$temp_new_logger-AFU_day$temp_ref)^2,na.rm = TRUE)), digits = 3),
+          round(sqrt(mean((AFU_day$temp_old_logger-AFU_day$temp_ref)^2,na.rm = TRUE)), digits = 3),
+          round(sqrt(mean((AFU_night$temp_new_logger-AFU_night$temp_ref)^2,na.rm = TRUE)),digits = 3),
+          round(sqrt(mean((AFU_night$temp_old_logger-AFU_night$temp_ref)^2,na.rm = TRUE)),digits = 3),
+          round(sqrt(mean((AFU_combined$temp_new_logger-AFU_combined$temp_old_logger)^2,na.rm = TRUE)), digits = 3),
+          round(sqrt(mean((AFU_day$temp_new_logger-AFU_day$temp_old_logger)^2,na.rm = TRUE)),digits = 3),
+          round(sqrt(mean((AFU_night$temp_new_logger-AFU_night$temp_old_logger)^2,na.rm = TRUE)),digits = 3))
 
-BIAS <- c(round((sum(AFU_combined$temp_new_logger - AFU_combined$temp_ref)/length(AFU_combined$temp_ref)), digits = 3), 
-          round((sum(AFU_combined$temp_old_logger - AFU_combined$temp_ref)/length(AFU_combined$temp_ref)), digits = 3),
-          round((sum(AFU_day$temp_new_logger - AFU_day$temp_ref)/length(AFU_day$temp_ref)), digits = 3), 
-          round((sum(AFU_day$temp_old_logger - AFU_day$temp_ref)/length(AFU_day$temp_ref)), digits = 3),
-          round((sum(AFU_night$temp_new_logger - AFU_night$temp_ref)/length(AFU_night$temp_ref)), digits = 3), 
-          round((sum(AFU_night$temp_old_logger - AFU_night$temp_ref)/length(AFU_night$temp_ref)), digits = 3))
+
+MAE <- c(round(mean(abs(AFU_combined$temp_new_logger-AFU_combined$temp_ref),na.rm = TRUE), digits = 3),
+         round(mean(abs(AFU_combined$temp_old_logger-AFU_combined$temp_ref),na.rm = TRUE), digits = 3),
+         round(mean(abs(AFU_day$temp_new_logger-AFU_day$temp_ref), na.rm = TRUE),digits = 3),
+         round(mean(abs(AFU_day$temp_old_logger-AFU_day$temp_ref), na.rm = TRUE),digits = 3),
+         round(mean(abs(AFU_night$temp_new_logger-AFU_night$temp_ref), na.rm = TRUE),digits = 3),
+         round(mean(abs(AFU_night$temp_old_logger-AFU_night$temp_ref), na.rm = TRUE),digits = 3),
+         round(mean(abs(AFU_combined$temp_new_logger-AFU_combined$temp_old_logger),na.rm = TRUE),digits = 3),
+         round(mean(abs(AFU_day$temp_new_logger-AFU_day$temp_old_logger), na.rm = TRUE),digits = 3),
+         round(mean(abs(AFU_night$temp_new_logger-AFU_night$temp_old_logger), na.rm = TRUE),digits = 3))
+
+BIAS <- c(round((sum(AFU_combined$temp_new_logger-AFU_combined$temp_ref, na.rm = TRUE)/
+                   length(AFU_combined$temp_ref)), digits = 3), 
+          round((sum(AFU_combined$temp_old_logger - AFU_combined$temp_ref, na.rm = TRUE)/
+                   length(AFU_combined$temp_ref)), digits = 3),
+          round((sum(AFU_day$temp_new_logger - AFU_day$temp_ref, na.rm = TRUE)/
+                   length(AFU_day$temp_ref)), digits = 3), 
+          round((sum(AFU_day$temp_old_logger - AFU_day$temp_ref, na.rm = TRUE)/
+                   length(AFU_day$temp_ref)), digits = 3),
+          round((sum(AFU_night$temp_new_logger - AFU_night$temp_ref, na.rm = TRUE)/
+                   length(AFU_night$temp_ref)), digits = 3), 
+          round((sum(AFU_night$temp_old_logger - AFU_night$temp_ref, na.rm = TRUE)/
+                   length(AFU_night$temp_ref)), digits = 3),
+          round((sum(AFU_combined$temp_new_logger - AFU_combined$temp_old_logger, na.rm = TRUE)/
+                   length(AFU_combined$temp_ref)), digits = 3),
+          round((sum(AFU_day$temp_new_logger - AFU_day$temp_old_logger, na.rm = TRUE)/
+                   length(AFU_day$temp_old_logger)), digits = 3),
+          round((sum(AFU_night$temp_new_logger - AFU_night$temp_old_logger, na.rm = TRUE)/
+                   length(AFU_night$temp_old_logger)), digits = 3))
 
 test <- cbind(NAMES, RMSE, MAE, BIAS)
 knitr::kable(test, caption = 'Table 1: Overview about error-metrics')|>
