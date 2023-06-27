@@ -294,7 +294,7 @@ eval_model(model.AFU.lm, AFU_train_approach, AFU_test_approach,
            c("AFU: lm-model"), c("AFU: lm-model"))
 
 # expanded KNN
-eval_model(model.AFU.opt.appraoch, AFU_train_approach, AFU_test_approach, 
+eval_model(model.AFU.opt.approach, AFU_train_approach, AFU_test_approach, 
            c("AFU: KNN-expanded (opt. k = 17)"), 
            c("AFU: KNN-expanded (opt. k = 17)"))
 
@@ -307,7 +307,7 @@ eval_model(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach,
 
 ```{r upscaling-AFU, warning=FALSE, error=FALSE, message=FALSE}
 # expanded KNN
-eval_model(model.AFU.opt.appraoch, AFU_train_approach, ZOLL, 
+eval_model(model.AFU.opt.approach, AFU_train_approach, ZOLL, 
            c("Zoll: KNN-expanded (opt. k = 17)"), 
            c("Zoll: KNN-expanded (opt. k = 17)"))
 
@@ -412,11 +412,11 @@ new_logger_zoll_2 <- new_logger_zoll_2|>
          'humidity' = decodedXpayload_humidity)
 
 # expanded KNN
-eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, new_logger_zoll_2, 
+eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_2, 
            c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
 
 # expanded lm
-eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, new_logger_zoll_2, 
+eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_2, 
            c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
 ```
 
@@ -438,10 +438,10 @@ new_logger_zoll_3 <- new_logger_zoll_3|>
          'humidity' = decodedXpayload_humidity)
 
 # expanded KNN
-eval_model(model.ZOLL.opt, ZOLL_train_approach, new_logger_zoll_3, 
+eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_3, 
            c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
 
 # expanded lm
-eval_model(model.ZOLL.lm, ZOLL_train_approach, new_logger_zoll_3, 
+eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_3, 
            c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
 ```
