@@ -93,6 +93,8 @@ conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::rename)
 conflicts_prefer(Metrics::rmse)
 conflicts_prefer(Metrics::mae)
+conflicts_prefer(lubridate::stamp)
+conflicts_prefer(recipes::fixed)
 ```
 
 We read all the data we need:
@@ -120,7 +122,7 @@ and if yes, where are they?
 
 ```{r visualize-missing-values, warning=FALSE, error=FALSE, message=FALSE}
 # Load the function to handle NAs
-source("../../AGDS_Bigler/R/general/function.visualize.na.values.R")
+source("../R/function.visualize.na.values.R")
 
 # We check the dataquality of the reference station
 visualize.na.values.without.groups(zoll_ref)
@@ -302,6 +304,18 @@ zoll_combined|>
            `Anomaly_new_log_ref3` > 3 | 
            `Anomaly_old_log_ref3` > 3 | 
            `Anomaly_new_log_old_log3` > 3 )
+
+# We write it into a CSV file
+# We want to know, if a certain file already exists
+name.of.file <- "../data/zoll_combined.csv"
+
+# If do not exists such a file, create it!
+if (!file.exists(name.of.file)){
+  # Convert the xlsx to a csv file
+  write_csv(zoll_combined, "../data/zoll_combined.csv")
+
+  # If exists such a file, we do nothing!
+  }else{}
 ```
 
 ## Data Split

@@ -78,6 +78,8 @@ conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::rename)
 conflicts_prefer(Metrics::rmse)
 conflicts_prefer(Metrics::mae)
+conflicts_prefer(lubridate::stamp)
+conflicts_prefer(recipes::fixed)
 ```
 
 We read all the data we need:
@@ -102,7 +104,7 @@ and if yes, where are they?
 
 ```{r handle_missing_values,  warning=FALSE, error=FALSE, message=FALSE}
 # Load the function to handle NAs
-source("../../AGDS_Bigler/R/general/function.visualize.na.values.R")
+source("../R/function.visualize.na.values.R")
 
 # We check the dataquality of the reference station
 visualize.na.values.without.groups(AFU_ref)
@@ -272,6 +274,19 @@ AFU_combined|>
 AFU_combined <- AFU_combined|>
   filter(! Row %in% c(3316:3489, 3513:3525))|>
   drop_na()
+
+
+# We write it into a CSV file
+# We want to know, if a certain file already exists
+name.of.file <- "../data/AFU_combined.csv"
+
+# If do not exists such a file, create it!
+if (!file.exists(name.of.file)){
+  # Convert the xlsx to a csv file
+  write_csv(AFU_combined, "../data/AFU_combined.csv")
+
+  # If exists such a file, we do nothing!
+  }else{}
 ```
 
 # Analysis
