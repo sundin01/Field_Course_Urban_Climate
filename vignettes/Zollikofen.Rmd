@@ -1,0 +1,683 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  '': default
+editor_options:
+  markdown:
+    wrap: 75
+---
+
+Course: Field Course Micrometeorology and Urban Climate at the University
+of Bern (Institute of Geography)
+
+Supervisor: Prof. Dr. Stefan Brönnimann
+
+Adviser: Dr. Moritz Gubler
+
+[Do you have questions about the workflow? Contact the
+Authors:]{.underline}
+
+Bigler Patrick
+([patrick.bigler1\@students.unibe.ch](mailto:patrick.bigler1@students.unibe.ch){.email})
+
+Sarah Ogi (sarah.ogi\@students.unibe.ch)
+
+Markella Bouchoriku (markella.bouchoriku\@students.unibe.ch )
+
+Reference: Zollikofen
+
+# Preparation
+
+First, we install and / or load packages we need. Important is the package
+"conflicted". It enables us to chose if different functions have the same
+call but do not make the same thing (a function in a certain package can
+have the same name as a function from another package).
+
+```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
+# install and activate all packages we need
+use_pkgs <-  c("dplyr", "tidyr", "readr", "lubridate", "stringr", "purrr",
+               "ggplot2", "tidyverse", "visdat", "terra", "hexbin", "jsonlite",
+               "MODISTools", "forcats", "yardstick", "recipes", "caret",
+               "broom", "skimr", "cowplot", "scico", "hwsdr", "usethis",
+               "renv", "rsample", "modelr", "rmarkdown", "rpart",
+               "rpart.plot", "ranger", "sessioninfo", "ncdf4","ggcorrplot",
+               "corrr", "corrplot", "lattice", "ggpmisc", "caret", "recipes",
+               "conflicted", "naniar","openxlsx", "readxl", "zoo", "kableExtra", 
+               "Metrics", "modeest")
+
+new_pkgs <- use_pkgs[!(use_pkgs %in% installed.packages()[, "Package"])]
+if (length(new_pkgs) > 0) install.packages(new_pkgs,repos = "http://cran.us.r-project.org")
+invisible(lapply(use_pkgs, require, character.only = TRUE))
+
+# We set preferences
+conflicts_prefer(ggplot2::annotate)
+conflicts_prefer(dplyr::select)
+conflicts_prefer(dplyr::mutate)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dplyr::rename)
+conflicts_prefer(Metrics::rmse)
+conflicts_prefer(Metrics::mae)
+```
+
+We read all the data we need:
+
+```{r read_the_files, warning=FALSE, error=FALSE, message=FALSE}
+# We read the reference data from Zollikofen (WMO Standard)
+zoll_ref <- read.csv2("../data/data_REF_ZOLL.original.csv")
+
+# We read a file with data from the old loggers
+old_logger <- read_xlsx("../data/data_logger_old.xlsx")
+
+# We read data from the new logger in Zollikofen (2m)
+new_logger_zoll_2 <- read.csv("../data/data_logger_new/20d1b9040ad9.csv") 
+  
+# We read data from the new logger in Zollikofen (3m)
+new_logger_zoll_3 <- read.csv("../data/data_logger_new/135a449d34a1.csv")
+```
+
+# Data quality
+
+Now we need a first impression about the data. Are there any missing values
+and if yes, where are they?
+
+## Missing Values
+
+```{r visualize-missing-values, warning=FALSE, error=FALSE, message=FALSE}
+# Load the function to handle NAs
+source("../../AGDS_Bigler/R/general/function.visualize.na.values.R")
+
+# We check the dataquality of the reference station
+visualize.na.values.without.groups(zoll_ref)
+
+# We check the dataquality of the reference station
+visualize.na.values.without.groups(new_logger_zoll_2)
+
+# We check the dataquality of the new loggers
+visualize.na.values.without.groups(new_logger_zoll_3 )
+
+# We check the dataquality of the old loggers
+visualize.na.values.without.groups(old_logger)
+```
+
+## Time-shift
+
+Because not all data has the same source we have to make sure all data
+works in the same time zone. For that we use lubridate which gives all the
+data a proper time- and date stamp. The old loggers works with CEST
+(Central Europe Summer Time). We define this time zone for the loggers
+(CEST = GMT -2). We do the same for the reference station due to the same
+reasons as for the old loggers. The new loggers works on UTC and therefore,
+we define it as GMT. If we defined time zones, R will do the corrections
+automatically.
+
+Further, it is easier to work with one data frame. That is why me join all
+three data frames into one. We make sure that we only use data if the date
+and time occur in all three data frames. For that, we round the time to the
+next 10 minutes.
+
+```{r time-shift, warning=FALSE, error=FALSE, message=FALSE}
+#First, change format of time and date for the old logger in front of AFU
+old_logger$Sommerzeit <- strptime(old_logger$Sommerzeit, format="%Y-%m-%d %H:%M")
+old_logger$Sommerzeit <- as.POSIXct(old_logger$Sommerzeit, tz = "Etc/GMT-2")
+attr(old_logger$Sommerzeit, "tzone")
+# We change a name of the column
+old_logger <- old_logger|>
+  rename('time' = Sommerzeit)
+
+# for zollikofen 2 meter old logger
+old_logger2 <- old_logger|>
+  select("time","Log_98")|>
+  # We change the names of the columns
+  rename('temp_old_logger_2' = 'Log_98')|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))|>
+  select(c('time', 'temp_old_logger_2'))
+
+# for zollikofen 3 meter old logger
+old_logger3 <- old_logger|>
+  select("time","Log_99")|>
+  # We change the names of the columns
+  rename('temp_old_logger_3' = 'Log_99')|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))|>
+  select(c('time', 'temp_old_logger_3'))
+
+# We change format of time and date for the new logger in Zollikofen (2m)
+new_logger_zoll_2$time <- gsub('[TZ]',' ', new_logger_zoll_2$time)
+new_logger_zoll_2$time <- strptime(new_logger_zoll_2$time, format="%Y-%m-%d %H:%M")
+new_logger_zoll_2$time <- as.POSIXct(new_logger_zoll_2$time, tz = "Etc/GMT")
+attr(new_logger_zoll_2$time, "tzone")
+
+new_logger_zoll_2 <- new_logger_zoll_2|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))|>
+  rename(temp_new_logger_2 = decodedXpayload_temperature)
+
+# We change format of time and date for the new logger in Zollikofen (3m)
+new_logger_zoll_3$time <- gsub('[TZ]',' ', new_logger_zoll_3$time)
+new_logger_zoll_3$time <- strptime(new_logger_zoll_3$time, format="%Y-%m-%d %H:%M")
+new_logger_zoll_3$time <- as.POSIXct(new_logger_zoll_3$time, tz = "Etc/GMT")
+attr(new_logger_zoll_3$time, "tzone")
+
+new_logger_zoll_3 <- new_logger_zoll_3|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))|>
+  rename(temp_new_logger_3 = decodedXpayload_temperature)
+
+zoll_ref$time <- strptime(zoll_ref$time, format="%Y%m%d%H%M")
+zoll_ref$time <- as.POSIXct(zoll_ref$time, tz = "ETC/GMT")
+attr(zoll_ref$time, "tzone")
+
+zoll_ref <- zoll_ref|>
+  mutate('temp_ref' = as.numeric(tre200s0))|>
+  select('time', 'temp_ref')
+
+# we merge two data frames. Now there are only values which has the same date
+zoll_all <- inner_join(new_logger_zoll_2, new_logger_zoll_3, by = 'time')
+
+# do it again and we merge two data frames. Now there are only values which has the same date
+zoll_all_2 <- inner_join(old_logger2, old_logger3, by = 'time')
+
+zoll_all_3 <- inner_join(zoll_all, zoll_all_2, by = 'time')
+
+zoll_combined <- inner_join(zoll_all_3, zoll_ref, by = 'time')
+
+zoll_combined <- zoll_combined|>
+  select(c('time', 'temp_ref', 'temp_new_logger_2', 'temp_new_logger_3',
+           'temp_old_logger_2', 'temp_old_logger_3'))|>
+  mutate(Row = c(1:3325))
+
+# make sure that every error is equal to NA
+zoll_combined[zoll_combined == -9999] <- NA
+```
+
+Because we want to be sure that the time shift worked we visualize 48h of
+each data file.
+
+```{r vis_time_shift_control, warning=FALSE, error=FALSE, message=FALSE}
+# We plot 48h to be sure that the time shift worked
+zoll_combined|>
+  # We filter 48h
+  filter(Row > 81 & Row < 375)|>
+  # We create a new table
+    pivot_longer(cols = c(temp_ref, temp_new_logger_2, temp_new_logger_3,
+                          temp_old_logger_2, temp_old_logger_3),
+               names_to = "Legend",
+               values_to = "values")|>
+  # We create a ggplot - line plot
+  ggplot(aes(x = time, y = values, color = Legend)) + 
+  geom_line(linewidth = 0.3)+
+  labs(x = 'Time', y = 'Absolute Temperature [°C]', title = 'Zollikofen: Time shift control')+
+  theme_light()
+```
+
+## Calculate anomalies
+
+We are not interested in the absolute values but in the anomalies. Here, we
+calculate those and add it to our data frame.
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+zoll_combined <- zoll_combined|>
+  mutate('Anomaly_new_log_ref2' = temp_new_logger_2 - temp_ref,
+         'Anomaly_old_log_ref2' = temp_old_logger_2 - temp_ref,
+         'Anomaly_new_log_ref3' = temp_new_logger_3 - temp_ref,
+         'Anomaly_old_log_ref3' = temp_old_logger_3 - temp_ref,
+         'Anomaly_new_log_old_log2' = temp_new_logger_2 - temp_old_logger_2,
+         'Anomaly_new_log_old_log3' = temp_new_logger_3 - temp_old_logger_3)
+```
+
+## Suspected data
+
+We want a "feeling" for our data. Are there outliers? If yes, why there? To
+answer those questions we aggregate the 10 minute resolution to a 2 hour
+resolution and plot them. We can see that most of the anamolies are in a
+[-3, 3] °C range.
+
+We also see that we don't have many data. The gap between day 18 and 24
+indicates that we don't have a complete month. Further, the data
+variability /scattering is relatively high. We filter our data to determine
+those "outliers" because it does not seems like a expected variability. Now
+we know, the varibaility is in the night. Because we cannot explain it, we
+work with the whole dataset.
+
+```{r suspected_data, warning=FALSE, error=FALSE, message=FALSE}
+# We create a column-plot of the anomalies. 
+zoll_combined|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "2 hours"))|>
+  group_by(aggregate_hourly)|>
+  mutate(daily = lubridate::day(time))|>
+  # We create a new table
+  pivot_longer(cols = c(`Anomaly_new_log_ref2`, 
+                        `Anomaly_old_log_ref2`, 
+                        `Anomaly_new_log_old_log2`,
+                        `Anomaly_new_log_ref3`, 
+                        `Anomaly_old_log_ref3`, 
+                        `Anomaly_new_log_old_log3`),
+                         names_to = "Legend",
+                         values_to = "values")|>
+  ggplot(aes(x = daily, y = values, color = Legend))+
+  geom_col(position="dodge", stat="identity")+
+    guides(size = FALSE) + 
+  theme(plot.margin = margin(2,.8,2,.8, "cm"),
+        plot.background = element_rect(fill = "darkgrey"))+
+  theme_light()
+
+# We filter the data for all values > 3 °C --> check the rows!
+zoll_combined|>
+  filter(`Anomaly_new_log_ref2` > 3 | 
+           `Anomaly_old_log_ref2` > 3 | 
+           `Anomaly_new_log_old_log2` > 3 |
+           `Anomaly_new_log_ref3` > 3 | 
+           `Anomaly_old_log_ref3` > 3 | 
+           `Anomaly_new_log_old_log3` > 3 )
+```
+
+## Data Split
+
+```{r split_data }
+zoll_day <- zoll_combined|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly >= 6 & hourly <= 22)
+
+zoll_night <- zoll_combined|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly < 7 | hourly > 21)
+```
+
+## Functions
+
+```{r load-functions}
+# We load our functions into the file
+source("../R/plot.functions.R")
+```
+
+## Line-plot
+
+```{r line-plots}
+# Line-plot new logger - reference station at Zollikofen 2m
+overview_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8)
+
+# Line-plot old logger - reference station at Zollikofen 2m
+overview_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9)
+
+# line-plot new logger - old logger at Zollikofen 2m
+overview_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12)
+
+# Line-plot new logger - reference station at Zollikofen 3m
+overview_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10)
+
+# Line-plot old logger - reference station at Zollikofen 3m
+overview_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11)
+
+# line-plot new logger - old logger at Zollikofen 3m
+overview_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
+```
+
+## Scatterplot
+
+```{r}
+# Scatter-plot new logger - reference station at Zollikofen (2m)
+overview_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE)
+
+# scatterplot old logger - reference station at Zollikofen (2m)
+overview_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
+
+# scatterplot new logger - old logger at Zollikofen (2m)
+overview_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
+
+# Scatter-plot new logger - reference station at Zollikofen (3m)
+overview_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE)
+
+# scatterplot old logger - reference station at Zollikofen (3m)
+overview_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FALSE)
+
+# scatterplot new logger - old logger at Zollikofen (3m)
+overview_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FALSE)
+```
+
+## Boxplot
+
+```{r}
+# Boxplot new logger - reference station at Zollikofen (2m)
+boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8)
+
+# Boxplot old logger - reference station at Zollikofen (2m)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9)
+
+# Boxplot new logger - old logger at Zollikofen (2m)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12)
+
+# Boxplot new logger - reference station at Zollikofen (3m)
+boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10)
+
+# Boxplot old logger - reference station at Zollikofen (3m)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11)
+
+# Boxplot new logger - old logger at Zollikofen (3m)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
+```
+
+```{r}
+# Boxplot new logger - reference station at Zollikofen 2m (daytime)
+boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE)
+
+# Boxplot old logger - reference station at Zollikofen 2m (daytime)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
+
+# Boxplot new logger - old logger at Zollikofen 2m (daytime)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
+
+# Boxplot new logger - reference station at Zollikofen 3m (daytime)
+boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE)
+
+# Boxplot old logger - reference station at Zollikofen 3m (daytime)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FALSE)
+
+# Boxplot new logger - old logger at Zollikofen 3m (daytime)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FALSE)
+```
+
+```{r}
+# Boxplot new logger - reference station at Zollikofen 2m (nighttime)
+boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, 
+                whole = FALSE, day = FALSE)
+
+# Boxplot old logger - reference station at Zollikofen 2m (nighttime)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, 
+                whole = FALSE, day = FALSE)
+
+# Boxplot new logger - old logger at Zollikofen 2m (nighttime)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, 
+                whole = FALSE, day = FALSE)
+
+# Boxplot new logger - reference station at Zollikofen 3m (nighttime)
+boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, 
+                whole = FALSE, day = FALSE)
+
+# Boxplot old logger - reference station at Zollikofen 3m (nighttime)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, 
+                whole = FALSE, day = FALSE)
+
+# Boxplot new logger - old logger at Zollikofen 3m (nighttime)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, 
+                whole = FALSE, day = FALSE)
+```
+
+## Density-plot
+
+```{r}
+# Densityplot new logger - reference station at Zollikofen (2m)
+densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8)
+
+# Densityplot old logger - reference station at Zollikofen (2m)
+densityplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9)
+
+# Densityplot new logger - old logger at Zollikofen (2m)
+densityplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12)
+
+# Densityplot new logger - reference station at Zollikofen (3m)
+densityplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10)
+
+# Densityplot old logger - reference station at Zollikofen (3m)
+densityplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11)
+
+# Densityplot new logger - old logger at Zollikofen (3m)
+densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
+```
+
+```{r}
+# Densityplot new logger - reference station at Zollikofen 2m (daytime)
+densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE)
+
+# Densityplot old logger - reference station at Zollikofen 2m (daytime)
+densityplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
+
+# Densityplot new logger - old logger at Zollikofen 2m (daytime)
+densityplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
+
+# Densityplot new logger - reference station at Zollikofen 3m (daytime)
+densityplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE)
+
+# Densityplot old logger - reference station at Zollikofen 3m (daytime)
+densityplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FALSE)
+
+# Densityplot new logger - old logger at Zollikofen 3m (daytime)
+densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FALSE)
+
+```
+
+```{r}
+# Densityplot new logger - reference station at Zollikofen 2m (nighttime)
+densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, 
+                    whole = FALSE, day = FALSE)
+
+# Densityplot old logger - reference station at Zollikofen 2m (nighttime)
+densityplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, 
+                    whole = FALSE, day = FALSE)
+
+# Densityplot new logger - old logger at Zollikofen 2m (nighttime)
+densityplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, 
+                    whole = FALSE, day = FALSE)
+
+# Densityplot new logger - reference station at Zollikofen 3m (nighttime)
+densityplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, 
+                    whole = FALSE, day = FALSE)
+
+# Densityplot old logger - reference station at Zollikofen 3m (nighttime)
+densityplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, 
+                    whole = FALSE, day = FALSE)
+
+# Densityplot new logger - old logger at Zollikofen 3m (nighttime)
+densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, 
+                    whole = FALSE, day = FALSE)
+
+```
+
+# Statistics
+
+## Errors
+
+```{r}
+
+NAMES <- c('24h, new_2 - ref', '24h, old_2 - ref',
+           '24h, new_3 - ref', '24h, old_3 - ref',
+           'day-time, new_2 - ref', 'day-time, old_2 - ref', 
+           'day-time, new_3 - ref', 'day-time, old_3 - ref',
+           'night-time, new_2 - ref', 'night-time, old_2 - ref',
+           'night-time, new_3 - ref', 'night-time, old_3 - ref',
+           '24h, new_2 - old_2', '24h, new_3 - old_3',
+           'day-time, new_2 - old_2', 'day-time, new_3 - old_3',
+           'night-time, new_2 - old_2', 'night-time, new_3 - old_3')
+
+RMSE <- c(round(rmse(zoll_combined$temp_new_logger_2, zoll_combined$temp_ref), digits = 3),
+          round(rmse(zoll_combined$temp_old_logger_2, zoll_combined$temp_ref), digits = 3),
+          round(rmse(zoll_combined$temp_ref, zoll_combined$temp_new_logger_3), digits = 3),
+          round(rmse(zoll_combined$temp_ref, zoll_combined$temp_old_logger_3), digits = 3),
+          round(rmse(zoll_day$temp_ref, zoll_day$temp_new_logger_2), digits = 3),
+          round(rmse(zoll_day$temp_ref, zoll_day$temp_old_logger_2), digits = 3),
+          round(rmse(zoll_day$temp_ref, zoll_day$temp_new_logger_3), digits = 3),
+          round(rmse(zoll_day$temp_ref, zoll_day$temp_old_logger_3), digits = 3),
+          round(rmse(zoll_night$temp_ref, zoll_night$temp_new_logger_2), digits = 3),
+          round(rmse(zoll_night$temp_ref, zoll_night$temp_old_logger_2), digits = 3),
+          round(rmse(zoll_night$temp_ref, zoll_night$temp_new_logger_3), digits = 3),
+          round(rmse(zoll_night$temp_ref, zoll_night$temp_old_logger_3), digits = 3),
+          round(rmse(zoll_combined$temp_old_logger_2, zoll_combined$temp_new_logger_2), 
+                digits = 3),
+          round(rmse(zoll_combined$temp_old_logger_3, zoll_combined$temp_new_logger_3), 
+                digits = 3),
+          round(rmse(zoll_day$temp_old_logger_2, zoll_day$temp_new_logger_2), 
+                digits = 3),
+          round(rmse(zoll_day$temp_new_logger_3, zoll_day$temp_new_logger_3), 
+                digits = 3),
+          round(rmse(zoll_night$temp_old_logger_2, zoll_night$temp_newlogger_2),
+                digits = 3),
+          round(rmse(zoll_night$temp_old_logger_3, zoll_night$temp_old_logger_3), 
+                digits = 3))
+
+MAE <- c(round(mae(zoll_combined$temp_ref, zoll_combined$temp_new_logger_2), digits = 3),
+         round(mae(zoll_combined$temp_ref, zoll_combined$temp_old_logger_2), digits = 3),
+         round(mae(zoll_combined$temp_ref, zoll_combined$temp_new_logger_3), digits = 3),
+         round(mae(zoll_combined$temp_ref, zoll_combined$temp_old_logger_3), digits = 3),
+         round(mae(zoll_day$temp_ref, zoll_day$temp_new_logger_2), digits = 3),
+         round(mae(zoll_day$temp_ref, zoll_day$temp_old_logger_2), digits = 3),
+         round(mae(zoll_day$temp_ref, zoll_day$temp_new_logger_3), digits = 3),
+         round(mae(zoll_day$temp_ref, zoll_day$temp_old_logger_3), digits = 3),
+         round(mae(zoll_night$temp_ref, zoll_night$temp_new_logger_2), digits = 3),
+         round(mae(zoll_night$temp_ref, zoll_night$temp_old_logger_2), digits = 3),
+         round(mae(zoll_night$temp_ref, zoll_night$temp_new_logger_3), digits = 3),
+         round(mae(zoll_night$temp_ref, zoll_night$temp_old_logger_3), digits = 3),
+         round(mae(zoll_combined$temp_old_logger_2, zoll_combined$temp_new_logger_2), 
+                digits = 3),
+         round(mae(zoll_combined$temp_old_logger_3, zoll_combined$temp_new_logger_3), 
+                digits = 3),
+         round(mae(zoll_day$temp_old_logger_2, zoll_day$temp_new_logger_2), 
+                digits = 3),
+         round(mae(zoll_day$temp_new_logger_3, zoll_day$temp_new_logger_3), 
+                digits = 3),
+         round(mae(zoll_night$temp_old_logger_2, zoll_night$temp_newlogger_2),
+                digits = 3),
+         round(mae(zoll_night$temp_old_logger_3, zoll_night$temp_old_logger_3), 
+                digits = 3))
+
+BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref)/
+                   length(zoll_combined$temp_ref)), digits = 3), 
+          round((sum(zoll_combined$temp_old_logger_2 - zoll_combined$temp_ref)/
+                   length(zoll_combined$temp_ref)), digits = 3),
+          round((sum(zoll_combined$temp_new_logger_3 - zoll_combined$temp_ref)/
+                   length(zoll_combined$temp_ref)), digits = 3),
+          round((sum(zoll_combined$temp_old_logger_3 - zoll_combined$temp_ref)/
+                   length(zoll_combined$temp_ref)), digits = 3),
+          round((sum(zoll_day$temp_new_logger_2 - zoll_day$temp_ref)/
+                   length(zoll_day$temp_ref)), digits = 3), 
+          round((sum(zoll_day$temp_old_logger_2 - zoll_day$temp_ref)/
+                   length(zoll_day$temp_ref)), digits = 3),
+          round((sum(zoll_day$temp_new_logger_3 - zoll_day$temp_ref)/
+                   length(zoll_day$temp_ref)), digits = 3),
+          round((sum(zoll_day$temp_old_logger_3 - zoll_day$temp_ref)/
+                   length(zoll_day$temp_ref)), digits = 3),
+          round((sum(zoll_night$temp_new_logger_2 - zoll_night$temp_ref)/
+                   length(zoll_night$temp_ref)), digits = 3), 
+          round((sum(zoll_night$temp_old_logger_2 - zoll_night$temp_ref)/
+                   length(zoll_night$temp_ref)), digits = 3),
+          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_ref)/
+                   length(zoll_night$temp_ref)), digits = 3),
+          round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
+                   length(zoll_night$temp_ref)), digits = 3),
+          round((sum(zoll_combined$temp_old_logger_3 - zoll_combined$temp_ref)/
+                   length(zoll_combined$temp_ref)), digits = 3),
+          round((sum(zoll_combined$temp_old_logger_3 - zoll_combined$temp_ref)/
+                   length(zoll_combined$temp_ref)), digits = 3),
+          round((sum(zoll_day$temp_old_logger_3 - zoll_day$temp_ref)/
+                   length(zoll_day$temp_ref)), digits = 3),
+          round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
+                   length(zoll_night$temp_ref)), digits = 3),
+                 round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
+                   length(zoll_night$temp_ref)), digits = 3),
+          round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
+                   length(zoll_night$temp_ref)), digits = 3))
+
+test <- cbind(NAMES, RMSE, MAE, BIAS)
+knitr::kable(test, caption = 'Table 1: Overview about error-metrics at Zollikofen')|>
+    kableExtra::kable_classic_2(full_width = T)
+```
+
+## Main paramater
+
+```{r}
+# Calculate the main statistic parameters
+knitr::kable(zoll_combined|>
+  rename(new_ref_2 = `Anomaly_new_log_ref2`,
+         old_ref_2 = `Anomaly_old_log_ref2`,
+         new_old_2 = `Anomaly_new_log_old_log2`,
+         new_ref_3 = `Anomaly_new_log_ref3`,
+         old_ref_3 = `Anomaly_old_log_ref3`,
+         new_old_3 = `Anomaly_new_log_old_log3`)|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  pivot_longer(cols = c(`new_ref_2`, `old_ref_2`, `new_old_2`,
+                        `new_ref_3`, `old_ref_3`, `new_old_3`),
+                         names_to = "Device",
+                         values_to = "values")|>
+  select('Device', 'values')|>
+  group_by(Device)|>
+  dplyr::summarise(mean = round(mean(values, na.rm = TRUE), digits = 3),
+         median = round(median(values, na.rm = TRUE), digits = 3),
+         max = round(max(values, na.rm = TRUE), digits = 3),
+         min = round(min(values, na.rm = TRUE), digits = 3),
+         std = round(sd(values, na.rm = TRUE), digits = 3),
+         q25 = round(quantile(values, probs = .25,na.rm = TRUE), digits = 3),
+         q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
+         iqr = round(IQR(values,na.rm = TRUE), digits = 3),
+         spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
+  caption = "Table 2: Main statistics parameters of Zollikofen (whole day)",
+  align = c('l', rep('c', times = 10)))|>
+  kableExtra::kable_classic_2(full_width = T)
+
+knitr::kable(zoll_combined|>
+  rename(new_ref_2 = `Anomaly_new_log_ref2`,
+         old_ref_2 = `Anomaly_old_log_ref2`,
+         new_old_2 = `Anomaly_new_log_old_log2`,
+         new_ref_3 = `Anomaly_new_log_ref3`,
+         old_ref_3 = `Anomaly_old_log_ref3`,
+         new_old_3 = `Anomaly_new_log_old_log3`)|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly >= 6 & hourly <= 22)|>    
+  pivot_longer(cols = c(`new_ref_2`, `old_ref_2`, `new_old_2`,
+                        `new_ref_3`, `old_ref_3`, `new_old_3`),
+                         names_to = "Device",
+                         values_to = "values")|>
+  select('Device', 'values')|>
+  group_by(Device)|>
+  dplyr::summarise(mean = round(mean(values, na.rm = TRUE), digits = 3),
+         median = round(median(values, na.rm = TRUE), digits = 3),
+         max = round(max(values, na.rm = TRUE), digits = 3),
+         min = round(min(values, na.rm = TRUE), digits = 3),
+         std = round(sd(values, na.rm = TRUE), digits = 3),
+         q25 = round(quantile(values, probs = .25,na.rm = TRUE), digits = 3),
+         q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
+         iqr = round(IQR(values,na.rm = TRUE), digits = 3),
+         spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
+  caption = "Table 3: Main statistics parameters of Zollikofen (night-time)",
+  align = c('l', rep('c', times = 10)))|>
+  kableExtra::kable_classic_2(full_width = T)
+
+knitr::kable(zoll_combined|>
+  rename(new_ref_2 = `Anomaly_new_log_ref2`,
+         old_ref_2 = `Anomaly_old_log_ref2`,
+         new_old_2 = `Anomaly_new_log_old_log2`,
+         new_ref_3 = `Anomaly_new_log_ref3`,
+         old_ref_3 = `Anomaly_old_log_ref3`,
+         new_old_3 = `Anomaly_new_log_old_log3`)|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly < 7 | hourly > 21)|>    
+  pivot_longer(cols = c(`new_ref_2`, `old_ref_2`, `new_old_2`,
+                        `new_ref_3`, `old_ref_3`, `new_old_3`),
+                         names_to = "Device",
+                         values_to = "values")|>
+  select('Device', 'values')|>
+  group_by(Device)|>
+  dplyr::summarise(mean = round(mean(values, na.rm = TRUE), digits = 3),
+         median = round(median(values, na.rm = TRUE), digits = 3),
+         max = round(max(values, na.rm = TRUE), digits = 3),
+         min = round(min(values, na.rm = TRUE), digits = 3),
+         std = round(sd(values, na.rm = TRUE), digits = 3),
+         q25 = round(quantile(values, probs = .25,na.rm = TRUE), digits = 3),
+         q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
+         iqr = round(IQR(values,na.rm = TRUE), digits = 3),
+         spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
+  caption = "Table 4: Main statistics parameters of Zollikofen (night-time)",
+  align = c('l', rep('c', times = 10)))|>
+  kableExtra::kable_classic_2(full_width = T)
+```
