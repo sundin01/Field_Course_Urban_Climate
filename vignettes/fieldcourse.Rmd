@@ -13,6 +13,1114 @@ editor_options:
     wrap: 75
 ---
 
+Tagesgang 6- 22 für density plot anschauen
+
+load all packages we need
+
+```{r error=FALSE, message=FALSE, warning=FALSE}
+source("../R/packages.R")
+```
+
+import the data
+
+```{r warning=FALSE, message=FALSE, error=FALSE}
+# here, we read data from the old loggers (for 25 locations, we need only for AFU, Zoll 2m and Zoll 3m)
+data_old_logger <- read_xlsx("../data/data_logger_old.xlsx")
+
+old_logger <- read_xlsx("../data/data_logger_old.xlsx")
+
+
+# We read the reference data from Zollikofen (WMO Standard)
+data_zoll <- read.csv2("../data/data_REF_ZOLL.original.csv")
+
+# here, we read data from the new LCD in Zollikofen (2m)
+zoll2m <- read.csv("../data/data_logger_new/20d1b9040ad9.csv") 
+  
+# here, we read data from the new LCD in Zollikofen (3m)
+zoll3m <- read.csv("../data/data_logger_new/135a449d34a1.csv")
+
+
+```
+
+Change format of date and time
+
+```{r}
+conflicts_prefer(dplyr::select)
+# We change the format of date and time
+data_old_logger$Sommerzeit <- strptime(data_old_logger$Sommerzeit, format="%Y-%m-%d %H:%M")
+data_old_logger$Sommerzeit <- as.POSIXct(data_old_logger$Sommerzeit, tz = "MET")
+
+# We change every -9999 value to NA
+data_old_logger[data_old_logger == -9999] <- NA
+
+data_old_logger|>
+  select("Sommerzeit","Log_83", "Log_98", "Log_99")|>
+  # We change the names of the columns
+  dplyr::rename("AFU" = "Log_83", "Zoll_2m" = "Log_98", "Zoll_3m" = "Log_99")
+```
+
+AFU
+
+make a proper data frame
+
+```{r}
+#First, change format of time and date for the new logger in AFU (2m)
+AFU2m$time <- gsub('[TZ]',' ', AFU2m$time)
+AFU2m$time <- strptime(AFU2m$time, format = "%Y-%m-%d %H:%M")
+
+# select all columns we need
+AFU2m <- AFU2m|>
+  dplyr::select('time', 'minute10', 'decodedXpayload_temperature')|>
+  # rename the columns
+  dplyr::rename(temp_new_logger = decodedXpayload_temperature)|>
+  # do a shift correction
+  dplyr::mutate(minute10 = lubridate::round_date(minute10,"10 minutes"))|>
+  dplyr::select(c('minute10', 'temp_new_logger'))
 
 
 
+AFU2m$time <- as.POSIXct(AFU2m$time, tz = "UTC")
+attr(AFU2m$time, "tzone")
+time_CH <- with_tz(AFU2m$time, "Europe/Zurich")
+AFU2m <- AFU2m|>
+  dplyr::mutate('row'= c(1:5073),
+              "minute10"= time_CH)
+
+
+
+
+# use AFU logger only!
+AFU_old_logger <- data_old_logger|>
+  select("Sommerzeit","Log_83")|>
+  # We change the names of the columns
+  dplyr::rename("temp_old_logger" = "Log_83", 'time' = 'Sommerzeit')|>
+  dplyr::mutate(minute10 = lubridate::round_date(time,"10 minutes"))|>
+  dplyr::select(c('minute10', 'temp_old_logger'))
+
+# We change format of time and date for AFU reference
+AFU_ref$Zeit <- format(AFU_ref$Zeit, format = "%H:%M")
+AFU_ref$Datum <- strptime(paste(AFU_ref$Datum,AFU_ref$Zeit,sep = " "), 
+                          format="%Y-%m-%d %H:%M") 
+AFU_ref$Datum <- as.POSIXct(AFU_ref$Datum, tz = "MET")
+
+AFU_ref <- AFU_ref|>
+  dplyr::rename(time = 'Datum', temp_ref = 'Temp')|>
+  dplyr::mutate(minute10 = lubridate::round_date(time,"10 minutes"))|>
+  dplyr::select(c('minute10', 'temp_ref'))
+
+AFU$Zeit <- format(AFU$Zeit, format = "%H:%M")
+AFU$Datum <- strptime(paste(AFU$Datum,AFU$Zeit,sep = " "), format="%Y-%m-%d %H:%M") 
+AFU$Datum <- as.POSIXct(AFU$Datum, tz = "MET")
+
+AFU <- AFU|>
+  dplyr::rename(time = 'Datum', temp_ref = 'Temp')|>
+  dplyr::mutate(minute10 = lubridate::round_date(time,"10 minutes"))|>
+  dplyr::select(-c('time', '...11', 'time', 'Zeit'))
+
+# we merge two data frames. Now there are only values which has the same date
+AFU_all <- dplyr::inner_join(AFU_ref, AFU2m, by = 'minute10')
+
+# do it again and we merge two data frames. Now there are only values which has the same date
+AFU_combined <- dplyr::inner_join(AFU_all, AFU_old_logger, by = 'minute10')
+
+# make sure that every error is equal to NA
+AFU_combined[AFU_combined == -9999] <- NA
+
+```
+
+multiple regression
+
+Reihen filter, weil sensor defekt war!
+
+```{r}
+# model with the intercept only
+nullModel = lm(temp_ref ~ 1, data = AFU) 
+# model with all 9 variables
+fullModel = lm(temp_ref ~ ., data = AFU) 
+
+# start with a model containing no variables
+summary(stepAIC(nullModel, 
+                # run forward selection
+                direction = 'forward', 
+                # the maximum to consider is a model with all variables
+                scope = list(upper = fullModel, 
+                # the minimum to consider is a model with no variables
+                lower = nullModel), 
+                # do not show the step-by-step process of model selection
+                trace = 0)) 
+```
+
+We calculate some anomalies and the erros
+
+```{r}
+AFU_combined <- AFU_combined|>
+  dplyr::mutate('Row' = c(1:4151),
+                'Anomaly: new log - ref' = temp_new_logger - temp_ref,
+                'Anomaly: old log - ref' = temp_old_logger - temp_ref,
+                'Anomaly: new log - old log' = temp_new_logger - temp_old_logger)|>
+#we exclude the following rows because of a break down of the reference station. We took some hours before and after the NAs to make sure that the values are representative. row 3334 is 2023-06-07 10:00 and row 3483 is 2023-06-08 11:00
+  dplyr::filter(Row < 3334 | Row > 3483)
+
+
+knitr::kable(AFU_combined_day|>
+  plyr::summarise(Median = median(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            IQR = IQR(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            Q.25 = quantile(AFU_combined_day$`Anomaly: new log - ref`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(AFU_combined_day$`Anomaly: new log - ref`, 0.75, na.rm = TRUE),
+            Max = max(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            Min = min(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            Mean = mean(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            STD = sd(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            Max = max(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            Min = min(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE),
+            Span = max(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE)-
+                         min(AFU_combined_day$`Anomaly: new log - ref`, na.rm = TRUE)),
+            caption = "Table 1: Overview of main statistical parameters (new 2m logger - reference station (AFU)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+
+knitr::kable(AFU_combined_day|>
+  plyr::summarise(Median = median(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            IQR = IQR(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            Q.25 = quantile(AFU_combined_day$`Anomaly: old log - ref`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(AFU_combined_day$`Anomaly: old log - ref`, 0.75, na.rm = TRUE),
+            Max = max(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            Min = min(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            Mean = mean(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            STD = sd(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            Max = max(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            Min = min(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE),
+            Span = max(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE)-
+                         min(AFU_combined_day$`Anomaly: old log - ref`, na.rm = TRUE)),
+            caption = "Table 2: Overview of main statistical parameters (old 2m logger - reference station (AFU)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+
+knitr::kable(AFU_combined_day|>
+  plyr::summarise(Median = median(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            IQR = IQR(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            Q.25 = quantile(AFU_combined_day$`Anomaly: new log - old log`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(AFU_combined_day$`Anomaly: new log - old log`, 0.75, na.rm = TRUE),
+            Max = max(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            Min = min(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            Mean = mean(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            STD = sd(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            Max = max(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            Min = min(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE),
+            Span = max(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE)-
+                         min(AFU_combined_day$`Anomaly: new log - old log`, na.rm = TRUE)),
+            caption = "Table 3: Overview of main statistical parameters (new 2m logger - old 2m logger (AFU)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+```
+
+```{r}
+# time-shift control
+pdf("../analysis/timeshift_afu.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+AFU <-  AFU_combined|>
+  dplyr::filter(Row > 1402 & Row < 1688)
+
+afu <- AFU|>
+  pivot_longer(cols = c(temp_ref, temp_new_logger, temp_old_logger),
+               names_to = "Legend",
+               values_to = "values")
+
+pdf("../analysis/timeshift_afu.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+ggplot(data = afu, aes(x = minute10, y = values, color = Legend)) + 
+  geom_line(linewidth = 0.3)+
+  labs(x = 'Time', y = 'Absolute Temperature', title = 'AFU: Time shift control')+
+  scale_fill_discrete(labels = c('new (2m)', 'new (3m)','old (2m)', 'old (3m)', 'ref'))+
+  theme_classic()
+dev.off()
+
+
+
+zoll <-  zoll_combined|>
+  dplyr::filter(Row > 69 & Row < 363)
+
+zoll <- zoll|>
+  pivot_longer(cols = c(temp_new_logger_2, temp_new_logger_3,
+                      temp_old_logger_2, temp_old_logger_3,
+                      temp_ref),
+               names_to = "Legend",
+               values_to = "values")
+
+# 
+pdf("../analysis/timeshift_zoll.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+ggplot(data = zoll, aes(x = minute10, y = values, color = Legend)) + 
+  geom_line(linewidth = 0.3)+
+  labs(x = 'Time', y = 'Absolute Temperature', title = 'Zollikofen: Time shift control')+
+  scale_fill_discrete(labels = c('new (2m)', 'new (3m)','old (2m)', 'old (3m)', 'ref'))+
+  theme_classic()
+
+```
+
+and make some plots
+
+```{r warning=FALSE}
+
+
+# create a ggplot to visualize data in a proper way --> geom_line for diurnal pattern
+AFU_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly: old log - ref`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "old logger - reference station") +
+  theme_classic()
+
+AFU_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: old log - ref`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_hline(yintercept =  median(AFU_combined$`Anomaly: old log - ref`, na.rm = TRUE),
+               color = "royalblue", size = 0.3, linetype = "dotdash")+
+  ggplot2::annotate("text", x = 0.5 , y =  4, hjust = 0,
+             label = "Overall median [0.363 K]", color = "royalblue")+
+   geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = "time of the day [h]", y = "ΔT [K]", title = "Boxplot: Anomaly old logger - reference station",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+
+AFU_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly: new log - ref`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "new logger - reference station") +
+  theme_classic()
+
+AFU_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: new log - ref`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  geom_hline(yintercept =  median(AFU_combined$`Anomaly: new log - ref`, na.rm = TRUE),
+               color = "royalblue", size = 0.3, linetype = "dotdash")+
+  ggplot2::annotate("text", x = 0.5 , y =  6, hjust = 0,
+             label = "Overall median [0.222 K]", color = "royalblue")+
+  labs(x = "Date", y = "ΔT [K]", title = "Anomaly: new logger - reference station",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+
+# old logger vs. new logger
+AFU_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly: new log - old log`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "time of the day [h]", y = "ΔT [K]", title = "New logger - Old logger") +
+  theme_classic()
+
+pdf("../analysis/box_afu.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+AFU_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: new log - old log`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
+  ggplot2::annotate("text", x = 0.5 , y =  2, hjust = 0,
+             label = "Overall median [-0.166 K]", color = "royalblue")+
+     # Make the values almost transparent and force the values with a width statement in a colomn
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = "time of the day [h]", y = "ΔT [K]", title = "Boxplot: Anomaly new logger - old logger",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+dev.off()
+
+
+pdf("../analysis/new2.ref.afu.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+AFU_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: new log - old log`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_hline(yintercept =  -0.135, size = 0.3, linetype = "dotdash")+
+  ggplot2::annotate("text", x = 0.5 , y =  2, hjust = 0,
+             label = "Overall median = -0.166 °C", color = "royalblue")+
+  ggplot2::annotate("text", x = 0.5 , y =  1.7, hjust = 0,
+             label = "Overall bias = -0.135 °C", color = "black") +
+  geom_hline(yintercept =  0, size = 0.1, linetype = "dotted")+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = "Time of the day [h]", y = "Anomaly [°C]", title = "AFU: Anomaly: new vs. old 2m",
+       subtitle = "24.05.2023-16.06.2023") +
+  theme_classic()
+dev.off()
+
+
+
+AFU_combined|>
+  ggplot(aes(x = AFU_combined$`Anomaly: new log - ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black") +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = , subtitle = )+
+  theme_classic()
+
+AFU_combined|>
+  ggplot(aes(x = AFU_combined$`Anomaly: old log - ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black") +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = , subtitle = )+
+  theme_classic()
+
+AFU_combined|>
+  ggplot(aes(x = AFU_combined$`Anomaly: new log - old log`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black") +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = , subtitle = )+
+  theme_classic()
+```
+
+```{r warning=FALSE}
+AFU_combined|>
+  ggplot(aes(x = AFU_combined$`Anomaly: new log - ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black") +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = , subtitle = )+
+  theme_classic()
+
+AFU_combined|>
+  ggplot(aes(x = AFU_combined$`Anomaly: old log - ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black") +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = , subtitle = )+
+  theme_classic()
+
+AFU_combined|>
+  ggplot(aes(x = AFU_combined$`Anomaly: new log - old log`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black") +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = , subtitle = )+
+  theme_classic()
+```
+
+Errors
+
+```{r}
+# We drop NA
+AFU_errors <- AFU_combined_day|>
+  drop_na()
+
+# Calculate rmse, mae, bias for old logger
+Metrics::rmse(AFU_errors$temp_ref, AFU_errors$temp_old_logger)
+Metrics::mae(AFU_errors$temp_ref, AFU_errors$temp_old_logger)
+(sum(AFU_errors$temp_old_logger - AFU_errors$temp_ref)) / length(AFU_errors$temp_new_logger)
+
+print(" ")
+
+# Calculate rmse, mae, bias for new logger
+Metrics::rmse(AFU_errors$temp_ref, AFU_errors$temp_new_logger)
+Metrics::mae(AFU_errors$temp_ref, AFU_errors$temp_new_logger)
+(sum(AFU_errors$temp_new_logger - AFU_errors$temp_ref)) / length(AFU_errors$temp_new_logger)
+
+
+(sum(AFU_errors$temp_new_logger - AFU_errors$temp_old_logger)) / length(AFU_errors$temp_new_logger)
+```
+
+Zollikofen
+
+```{r}
+# For zollikofen 3 meter new logger
+
+# We change format of time and date for the new logger in Zollikofen (2m)
+zoll2m$time <- gsub('[TZ]',' ', zoll2m$time)
+zoll2m$time <- strptime(zoll2m$time, format="%Y-%m-%d %H:%M")
+zoll2m$time <- as.POSIXct(zoll2m$time, tz = "UTC")
+attr(zoll2m$time, "tzone")
+time_CH <- with_tz(zoll2m$time, "Europe/Zurich")
+
+zoll2m <- zoll2m|>
+  dplyr::mutate('row' = c(1:5085),
+                'minute10' = time_CH)
+
+zoll2m <- zoll2m|>
+  dplyr::select('time', 'minute10', 'decodedXpayload_temperature')|>
+  dplyr::rename(temp_new_logger_2 = decodedXpayload_temperature)|>
+  dplyr::mutate(minute10 = lubridate::round_date(minute10,"10 minutes"))|>
+  dplyr::select(c('minute10', 'temp_new_logger_2'))
+
+
+# for zollikofen 3 meter new logger
+zoll3m$time <- gsub('[TZ]',' ', zoll3m$time)
+zoll3m$time <- strptime(zoll3m$time, format="%Y-%m-%d %H:%M")
+zoll3m$time <- as.POSIXct(zoll3m$time, tz = "UTC")
+attr(zoll3m$time, "tzone")
+time_CH <- with_tz(zoll3m$time, "Europe/Zurich")
+
+zoll3m <- zoll3m|>
+  dplyr::mutate('row' = c(1:3760),
+                'minute10' = time_CH)
+
+zoll3m <- zoll3m|>
+  dplyr::select('time', 'minute10', 'decodedXpayload_temperature')|>
+  dplyr::rename(temp_new_logger_3 = decodedXpayload_temperature)|>
+  dplyr::mutate(minute10 = lubridate::round_date(minute10,"10 minutes"))|>
+  dplyr::select(c('minute10', 'temp_new_logger_3'))
+
+# for zollikofen 2 meter old logger
+zoll_old_logger_2 <- data_old_logger|>
+  select("Sommerzeit","Log_98")|>
+  # We change the names of the columns
+  dplyr::rename('temp_old_logger_2' = 'Log_98', 'time' = 'Sommerzeit')|>
+  dplyr::mutate(minute10 = lubridate::round_date(time,"10 minutes"))|>
+  dplyr::select(c('minute10', 'temp_old_logger_2'))
+
+# for zollikofen 3 meter old logger
+zoll_old_logger_3 <- data_old_logger|>
+  select("Sommerzeit","Log_99")|>
+  # We change the names of the columns
+  dplyr::rename('temp_old_logger_3' = 'Log_99', 'time' = 'Sommerzeit')|>
+  dplyr::mutate(minute10 = lubridate::round_date(time,"10 minutes"))|>
+  dplyr::select(c('minute10', 'temp_old_logger_3'))
+
+# zollikofen reference station
+
+data_zoll <- read.csv2("../data/data_REF_ZOLL.original.csv")
+
+data_zoll$time <- strptime(data_zoll$time, format="%Y%m%d%H%M")
+data_zoll$time <- as.POSIXct(data_zoll$time, tz = "UTC")
+
+data_zoll <- data_zoll|>
+  dplyr::mutate('temp_ref' = as.numeric(tre200s0))|>
+  dplyr::rename('minute10' = time)|>
+  dplyr::select('minute10', 'temp_ref')
+  
+
+# we merge two data frames. Now there are only values which has the same date
+zoll_all <- dplyr::inner_join(zoll2m, zoll3m, by = 'minute10')
+
+# do it again and we merge two data frames. Now there are only values which has the same date
+zoll_all_2 <- dplyr::inner_join(zoll_old_logger_2, zoll_old_logger_3, by = 'minute10')
+
+zoll_all_3 <- dplyr::inner_join(zoll_all, zoll_all_2, by = 'minute10')
+
+zoll_combined <- dplyr::inner_join(zoll_all_3, data_zoll, by = 'minute10')
+
+# make sure that every error is equal to NA
+zoll_combined[zoll_combined == -9999] <- NA
+```
+
+```{r warning=FALSE}
+
+zoll_combined_day <- zoll_combined |>
+  dplyr::mutate(since_midnight = lubridate::hour(minute10) * 60 + lubridate::minute(minute10))|>
+  dplyr::filter(since_midnight > 360 & since_midnight < 1320)
+
+zoll_combined <- zoll_combined|>
+  dplyr::mutate('Row' = c(1:3325),
+                'Anomaly: new log_2 to ref' = zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref,
+                'Anomaly: new log_3 to ref' = temp_new_logger_3 - temp_ref,
+                'Anomaly: old log_2 to ref' = temp_old_logger_2 - temp_ref,
+                'Anomaly: old log_3 to ref' = temp_old_logger_3 - temp_ref,
+                'Anomaly new log_2 to old log_2' = temp_new_logger_2 - temp_old_logger_2,
+                'Anomaly: new log_3 to old log_3' = temp_new_logger_3 - temp_old_logger_3)
+
+
+knitr::kable(zoll_combined_day|>
+  plyr::summarise(Median = median(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            IQR = IQR(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            Q.25 = quantile(zoll_combined_day$`Anomaly: new log_2 to ref`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(zoll_combined_day$`Anomaly: new log_2 to ref`, 0.75, na.rm = TRUE),
+            Max = max(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            Mean = mean(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            STD = sd(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            Max = max(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE),
+            Span = max(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE)-
+                         min(zoll_combined_day$`Anomaly: new log_2 to ref`, na.rm = TRUE)),
+            caption = "Table 1: Overview of main statistical parameters (new 2m logger - reference station (Zollikofen)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+
+knitr::kable(zoll_combined|>
+  plyr::summarise(Median = median(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            IQR = IQR(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            Q.25 = quantile(zoll_combined$`Anomaly: new log_3 to ref`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(zoll_combined$`Anomaly: new log_3 to ref`, 0.75, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            Mean = mean(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            STD = sd(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+            Span = max(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE)-
+                         min(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE)),
+            caption = "Table 3: Overview of main statistical parameters (new 3m logger - reference station (Zollikofen)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+
+knitr::kable(zoll_combined_day|>
+  plyr::summarise(Median = median(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            IQR = IQR(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            Q.25 = quantile(zoll_combined_day$`Anomaly: old log_2 to ref`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(zoll_combined_day$`Anomaly: old log_2 to ref`, 0.75, na.rm = TRUE),
+            Max = max(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            Mean = mean(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            STD = sd(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            Max = max(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE),
+            Span = max(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE)-
+                         min(zoll_combined_day$`Anomaly: old log_2 to ref`, na.rm = TRUE)),
+            caption = "Table 3: Overview of main statistical parameters (old 2m logger - reference station (Zollikofen)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+
+knitr::kable(zoll_combined|>
+  plyr::summarise(Median = median(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            IQR = IQR(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            Q.25 = quantile(zoll_combined$`Anomaly: old log_3 to ref`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(zoll_combined$`Anomaly: old log_3 to ref`, 0.75, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            Mean = mean(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            STD = sd(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE),
+            Span = max(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE)-
+                         min(zoll_combined$`Anomaly: old log_3 to ref`, na.rm = TRUE)),
+            caption = "Table 4: Overview of main statistical parameters (old 3m logger - reference station (Zollikofen)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+
+knitr::kable(zoll_combined|>
+  plyr::summarise(Median = median(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            IQR = IQR(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            Q.25 = quantile(zoll_combined$`Anomaly new log_2 to old log_2`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(zoll_combined$`Anomaly new log_2 to old log_2`, 0.75, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            Mean = mean(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            STD = sd(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE),
+            Span = max(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE)-
+                         min(zoll_combined$`Anomaly new log_2 to old log_2`, na.rm = TRUE)),
+            caption = "Table 5: Overview of main statistical parameters (old 2m logger - new 2m logger)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+
+knitr::kable(zoll_combined|>
+  plyr::summarise(Median = median(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            IQR = IQR(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            Q.25 = quantile(zoll_combined$`Anomaly: new log_3 to old log_3`, 0.25, na.rm = TRUE),
+            Q.75 = quantile(zoll_combined$`Anomaly: new log_3 to old log_3`, 0.75, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            Mean = mean(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            STD = sd(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            Max = max(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            Min = min(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+            Span = max(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE)-
+                         min(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE)),
+            caption = "Table 6: Overview of main statistical parameters (old 3m logger - new 2m logger)",
+            align = c("l", rep("c", 11)), format = "html")|>
+            kableExtra::kable_classic()
+```
+
+```{r}
+
+#2m new
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly: new log_2 to ref`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "new logger 2m - reference station") +
+  theme_classic()
+
+# 3m new
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly: new log_3 to ref`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "new logger 3m - reference station") +
+  theme_classic()
+
+# 2m old
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly: old log_2 to ref`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "old logger 2m - reference station") +
+  theme_classic()
+
+# 3m old
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly: old log_3 to ref`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "old logger 3m - reference station") +
+  theme_classic()
+
+
+# old vs. new 2m
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = aggregate_hourly, y = `Anomaly new log_2 to old log_2`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "new vs. old 2m") +
+  theme_classic()
+
+# old vs. new 2m
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  ggplot(aes(x = aggregate_hourly, y = zoll_combined$`Anomaly: new log_3 to old log_3`)) +
+  geom_point(alpha = 0.5) +
+  geom_line(linewidth = 0.2) +
+  labs(x = "Date", y = "ΔT [K]", title = "new vs. old 3m") +
+  theme_classic()
+```
+
+```{r}
+zoll <-  zoll_combined|>
+  dplyr::filter(Row > 69 & Row < 416)
+
+zoll <- zoll|>
+  pivot_longer(cols = c(temp_new_logger_2, temp_new_logger_3,
+                      temp_old_logger_2, temp_old_logger_3,
+                      temp_ref),
+               names_to = "Legend",
+               values_to = "values")
+
+# 
+pdf("../analysis/timeshift_zoll.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+ggplot(data = zoll, aes(x = minute10, y = values, color = Legend)) + 
+  geom_line(linewidth = 0.3)+
+  labs(x = 'Time', y = 'Absolute Temperature', title = 'Zollikofen: Time shift control')+
+  scale_fill_discrete(labels = c('new (2m)', 'new (3m)','old (2m)', 'old (3m)', 'ref'))+
+  theme_classic()
+dev.off()
+
+
+```
+
+```{r warning=FALSE}
+# create a ggplot to visualize data in a proper way --> geom_line for diurnal pattern
+
+#2m new
+
+pdf("../analysis/new2.ref.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: new log_2 to ref`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_hline(yintercept =  0.391, size = 0.3, linetype = "dotdash")+
+  ggplot2::annotate("text", x = 0.5 , y =  4, hjust = 0,
+             label = "Overall median = 0.367 K", color = "royalblue")+
+  ggplot2::annotate("text", x = 0.5 , y =  3.8, hjust = 0,
+             label = "Overall bias = 0.391 K", color = "black") +
+  geom_hline(yintercept =  0, size = 0.1, linetype = "dotted")+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = "Time of the day [h]", y = "Anomaly [°C]", title = "Zollikofen: Anomaly new logger 2m - reference station",
+       subtitle = "24.05.2023-16.06.2023") +
+  theme_classic()
+dev.off()
+# 3m new
+
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: new log_3 to ref`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  geom_hline(yintercept =  median(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+               color = "royalblue", size = 0.3, linetype = "dotdash")+
+  ggplot2::annotate("text", x = 0.5 , y =  3.8, hjust = 0,
+             label = "Overall bias = 0.391 K", color = "black") +
+  geom_hline(yintercept =  0, size = 0.1, linetype = "dotted")+
+  ggplot2::annotate("text", x = 0.5 , y =  4, hjust = 0,
+             label = "Overall median [0.222 K]", color = "royalblue")+
+  labs(x = "Date", y = "ΔT [K]", title = "Anomaly: new logger 3m - reference station",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+
+# 2m old
+pdf("../analysis/old2.ref.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: old log_2 to ref`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  geom_hline(yintercept =  0.485, size = 0.1, linetype = "dotted")+
+  ggplot2::annotate("text", x = 0.5 , y =  3.8, hjust = 0,
+             label = "Overall bias [0.485 K]", color = "black")+
+  ggplot2::annotate("text", x = 0.5 , y =  4, hjust = 0,
+             label = "Overall median [0.495 K]", color = "royalblue")+
+  labs(x = "Time of the day [h]", y = "Anomaly [°C]", title = "Zollikofen: Anomaly old logger 2m - reference station",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+dev.off()
+
+# 3m old
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly: old log_3 to ref`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  geom_hline(yintercept =  median(zoll_combined$`Anomaly: new log_3 to ref`, na.rm = TRUE),
+               color = "royalblue", size = 0.3, linetype = "dotdash")+
+  geom_hline(yintercept =  0, size = 0.1, linetype = "dotted")+
+  ggplot2::annotate("text", x = 0.5 , y =  4, hjust = 0,
+             label = "Overall median [0.222 K]", color = "royalblue")+
+  labs(x = "Date", y = "ΔT [K]", title = "Anomaly: old logger 3m - reference station",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+
+
+# old vs. new
+pdf("../analysis/new.old.box.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = `Anomaly new log_2 to old log_2`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  geom_hline(yintercept = -0.0943, size = 0.3, linetype = "dotdash")+
+  ggplot2::annotate("text", x = 0.5 , y =  2, hjust = 0,
+             label = "Overall median = -0.125 °C", color = "royalblue")+
+  ggplot2::annotate("text", x = 0.5 , y =  1.7, hjust = 0,
+             label = "Overall bias = -0.094 °C")+
+  labs(x = "Time of the day [h]", y = "Anomaly [°C]", title = "Zollikofen: Anomaly: new vs. old 2m",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+dev.off()
+
+
+
+# old vs. new
+zoll_combined|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  ggplot(aes(x = factor(hourly), y = zoll_combined$`Anomaly: new log_3 to old log_3`)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01) +
+      # Add an error-bar and make a individual setup
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3) +
+  geom_hline(yintercept =  median(zoll_combined$`Anomaly: new log_3 to old log_3`, na.rm = TRUE),
+               color = "royalblue", size = 0.3, linetype = "dotdash") +
+  geom_hline(yintercept =  0, size = 0.1, linetype = "dotted") +
+  ggplot2::annotate("text", x = 0.5 , y =  2, hjust = 0,
+             label = "Overall median [xxx K]", color = "royalblue") +
+  labs(x = "Date", y = "ΔT [K]", title = "Anomaly: new vs. old 3m",
+       subtitle = "15.05.2023-13.06.2023") +
+  theme_classic()
+
+```
+
+```{r warning=FALSE}
+pdf("../analysis/den.new.ref.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly: new log_2 to ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.3, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 0.7)+
+  geom_vline(xintercept = 0, size = 0.5, linetype = "dotted" )+
+  labs(x = "Anomaly [°C]", y = 'Density', title = 'Zollikofen: new logger 2m - reference station' , 
+       subtitle = '24.05.2023 - 16.06.2023' )+
+  theme_classic()
+dev.off
+
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly: new log_3 to ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = 'new logger (3m) vs. reference station (ZOLL)', 
+       subtitle = '24.05.2023 - 16.06.2023')+
+  theme_classic()
+
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly: old log_2 to ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = 'old logger (3m) vs. reference station (ZOLL)', 
+       subtitle = '24.05.2023 - 16.06.2023')+
+  theme_classic()
+
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly: old log_3 to ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = 'old logger (3m) vs. reference station (ZOLL)' , 
+       subtitle = '24.05.2023 - 16.06.2023' )+
+  theme_classic()
+
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly new log_2 to old log_2`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = 'new logger (2m) vs. old logger (2m)', 
+       subtitle = '24.05.2023 - 16.06.2023')+
+  theme_classic()
+
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly: new log_3 to old log_3`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.5, color = "white", fill = "black", bins = 30) +
+  geom_density(color = "red", linewidth = 1)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "ΔT [K]", title = 'new logger (3m) vs. old logger (3m)' , 
+       subtitle = '24.05.2023 - 16.06.2023')+
+  theme_classic()
+```
+
+```{r}
+
+zoll_errors <- zoll_combined|>
+  drop_na()
+
+print(" ")
+
+Metrics::rmse(zoll_errors$temp_ref, zoll_errors$temp_new_logger_2)
+(sum(zoll_errors$temp_new_logger_2 - zoll_errors$temp_ref)) / length(zoll_errors$temp_ref)
+Metrics::rmse(zoll_errors$temp_ref, zoll_errors$temp_old_logger_2)
+(sum(zoll_errors$temp_old_logger_2 - zoll_errors$temp_ref)) / length(zoll_errors$temp_ref)
+
+print(" ")
+
+# Calculate rmse, mae, bias for new logger
+Metrics::rmse(zoll_errors$temp_ref, zoll_errors$temp_new_logger_2)
+Metrics::mae(zoll_errors$temp_ref, zoll_errors$temp_new_logger_2)
+(sum(zoll_errors$temp_new_logger_2 - zoll_errors$temp_ref)) / length(zoll_errors$temp_ref)
+
+print(" ")
+
+Metrics::rmse(zoll_errors$temp_ref, zoll_errors$temp_new_logger_3)
+Metrics::mae(zoll_errors$temp_ref, zoll_errors$temp_new_logger_3)
+(sum(zoll_errors$temp_new_logger_3 - zoll_errors$temp_ref)) / length(zoll_errors$temp_ref)
+
+print(" ")
+
+Metrics::rmse(zoll_errors$temp_ref, zoll_errors$temp_old_logger_2)
+Metrics::mae(zoll_errors$temp_ref, zoll_errors$temp_old_logger_2)
+(sum(zoll_errors$temp_old_logger_2 - zoll_errors$temp_ref)) / length(zoll_errors$temp_ref)
+
+print(" ")
+
+Metrics::rmse(zoll_errors$temp_ref, zoll_errors$temp_new_logger_2)
+Metrics::mae(zoll_errors$temp_ref, zoll_errors$temp_new_logger_2)
+(sum(zoll_errors$temp_new_logger_2 - zoll_errors$temp_ref)) / length(zoll_errors$temp_ref)
+
+print(" ")
+
+Metrics::rmse(zoll_errors$temp_ref, zoll_errors$temp_old_logger_3)
+Metrics::mae(zoll_errors$temp_ref, zoll_errors$temp_old_logger_3)
+(sum(zoll_errors$temp_old_logger_3 - zoll_errors$temp_ref)) / length(zoll_errors$temp_ref)
+
+print(" ")
+
+(sum(zoll_errors$temp_new_logger_2 - zoll_errors$temp_old_logger_2)) / length(zoll_errors$temp_new_logger_2)
+```
+
+```{r}
+
+pdf("../analysis/den.new.ref.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly: new log_2 to ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.3, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 0.7)+
+  geom_vline(xintercept = 0, size = 0.5, linetype = "dotted" )+
+  labs(x = "Anomaly [°C]", y = 'Density', title = 'Zollikofen: new logger 2m - reference station' , 
+       subtitle = '24.05.2023 - 16.06.2023' )+
+  theme_classic()
+dev.off
+
+pdf("../analysis/den.new.old.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined|>
+  ggplot(aes(x = zoll_combined$`Anomaly new log_2 to old log_2`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.3, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 0.7)+
+  geom_vline(xintercept = 0, size = 0.5, linetype = "dotted" )+
+  labs(x = "Anomaly [°C]", y = 'Density', title = 'Zollikofen: new logger 2m - old logger 2m', 
+       subtitle = '24.05.2023 - 16.06.2023')+
+  theme_classic()
+dev.off
+
+
+```
+
+```{r}
+zoll_combined_day <- zoll_combined |>
+  dplyr::mutate(since_midnight = lubridate::hour(minute10) * 60 + lubridate::minute(minute10))|>
+  dplyr::filter(since_midnight > 360 & since_midnight < 1320)
+
+
+
+zollbox <- zoll_combined_day|>
+  pivot_longer(cols = c(`Anomaly: new log_2 to ref`,
+                        `Anomaly: old log_2 to ref`),
+               names_to = "Legend",
+               values_to = "values")
+
+pdf("../analysis/den.new.old.together.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zollbox|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = values, color = Legend))+
+  geom_boxplot(alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "black", outlier.shape = 17, outlier.size = 2)+
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.7)+
+  geom_hline(yintercept =  0, size = 0.1, linetype = "dotted")+ 
+  labs(x = "Time [h]", y = 'Anomaly [°C]', title = 'Zollikofen: 2m loggers - reference station ', 
+       subtitle = '24.05.2023 - 16.06.2023 | 06:00-22:00')+
+  theme_classic()
+dev.off()
+```
+
+```{r}
+
+
+
+pdf("../analysis/den.new.ref.day.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined_day|>
+  ggplot(aes(x = zoll_combined_day$`Anomaly new log_2 to old log_2`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.3, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 0.7)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "Anomaly [°C]",y = 'Density', title = 'Zollikofen: new logger 2m - old logger 2m', 
+       subtitle = '24.05.2023 - 16.06.2023 | 06:00-22:00')+
+  theme_classic()
+dev.off
+
+pdf("../analysis/den.new.old.day.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+zoll_combined_day|>
+  ggplot(aes(x = zoll_combined_day$`Anomaly: new log_2 to ref`, y = after_stat(density))) +
+  geom_histogram(alpha = 0.3, color = "white", fill = "black",  bins = 30) +
+  geom_density(color = "red", linewidth = 0.7)+
+  geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
+  labs(x = "Anomaly [°C]",y = 'Density',
+       title = 'Zollikofen: new logger 2m - reference station', 
+       subtitle = '24.05.2023 - 16.06.2023 | 06:00-22:00')+
+  theme_classic()
+dev.off
+```
+
+```{r}
+AFU_combined_day <- AFU_combined |>
+  dplyr::mutate(since_midnight = lubridate::hour(minute10) * 60 + lubridate::minute(minute10))|>
+  dplyr::filter(since_midnight > 360 & since_midnight < 1320)
+
+afubox <- AFU_combined_day|>
+  pivot_longer(cols = c(`Anomaly: new log - ref`, 
+                        `Anomaly: old log - ref`),
+               names_to = "Legend",
+               values_to = "values")
+
+
+pdf("../analysis/box.new.old.together.pdf",
+    width = 20 / 2.54, height = 15 / 2.54)
+afubox|>
+  dplyr::mutate(aggregate_hourly = lubridate::round_date(minute10, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  dplyr::mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  drop_na()|>
+  ggplot(aes(x = factor(hourly), y = values, color = Legend))+
+  geom_boxplot(alpha = 0.5, lwd = 0.3, width = 0.5,
+            outlier.color = "black", outlier.shape = 17, outlier.size = 2)+
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.7)+
+  geom_hline(yintercept =  0, size = 0.1, linetype = "dotted")+ 
+  labs(x = "Time [h]", y = 'Anomaly [°C]', title = 'AFU: 2m loggers - reference station ', 
+       subtitle = '24.05.2023 - 16.06.2023 | 06:00-22:00')+
+  theme_classic()
+dev.off()
+
+```
