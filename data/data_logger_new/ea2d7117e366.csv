@@ -1,0 +1,2 @@
+Xmeasurement,devXeui,host,name,topic,decodedXpayload_humidity,decodedXpayload_temperature,time
+mqtt_consumer,2F40CBFEFFE70FFE,grafana,ea2d7117e366,helium/ea2d7117e366/rx,38.579232471198594,29.686427100022883,2023-06-19T15:40:13.000000Z
