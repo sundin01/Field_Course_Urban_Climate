@@ -1,19 +1,294 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  '': default
+editor_options:
+  markdown:
+    wrap: 75
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+Course: Field Course Micrometeorology and Urban Climate at the University
+of Bern (Institute of Geography)
 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+Supervisor: Prof. Dr. Stefan Brönnimann
 
-```{r}
-plot(cars)
+Adviser: Dr. Moritz Gubler
+
+Do you have questions about the workflow? Contact the Authors:
+
+Bigler Patrick
+([patrick.bigler1\@students.unibe.ch](mailto:patrick.bigler1@students.unibe.ch){.email})
+
+Sarah Ogi
+([sarah.ogi\@students.unibe.ch](mailto:sarah.ogi@students.unibe.ch){.email})
+
+Markella Bouchoriku
+([markella.bouchoriku\@students.unibe.ch](mailto:markella.bouchoriku@students.unibe.ch){.email}
+)
+
+Reference: Zollikofen
+
+# Introduction
+
+|              |                     |
+|--------------|---------------------|
+| Coordinates: | 7°28' E, 46°59' N   |
+| Altitude:    | 552 a.s.l.          |
+| Time:        | UTC / GMT           |
+| Source:      | Meteo Schweiz       |
+
+: Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
+station)
+
+|              |                                          |
+|--------------|------------------------------------------|
+| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
+| Altitude:    | 554.5 a.s.l.                             |
+| Time:        | UTC-2 / GMT-2                            |
+| Source:      | AFU (Amt für Umwelt der Stadt Bern)      |
+
+: Table 2: Metadata for the MeteoSchweiz station in Zollikofen (reference
+station)
+
++----------------+-----------------------------------------+
+| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++----------------+-----------------------------------------+
+| Altitude:      | 552.9 a.s.l.                            |
++----------------+-----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2               |
+|                |                                         |
+|                | New Logger: UTC / GMT                   |
++----------------+-----------------------------------------+
+| Logger Number: | 98                                      |
++----------------+-----------------------------------------+
+| Code grafana   | 20d1b9040ad9                            |
++----------------+-----------------------------------------+
+
+: Table 3: Metadata for the 2m Logger in Zollikofen
+
++----------------+------------------------------------------+
+| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
++----------------+------------------------------------------+
+| Altitude:      | 554.5 a.s.l.                             |
++----------------+------------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2                |
+|                |                                          |
+|                | New Logger: UTC / GMT                    |
++----------------+------------------------------------------+
+| Logger Number: | 83                                       |
++----------------+------------------------------------------+
+| Code grafana   | d6e2769def35                             |
++----------------+------------------------------------------+
+
+: Table 4: Metadata for the 2m Logger at AFU
+
+# Preparation
+
+```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
+# install and activate all packages we need
+source("../R/general/packages.R")
+
+# We set preferences
+conflicts_prefer(ggplot2::annotate)
+conflicts_prefer(dplyr::select)
+conflicts_prefer(dplyr::mutate)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dplyr::rename)
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+```{r read_the_data, warning=FALSE, error=FALSE, message=FALSE}
+# We read the reference data from Zollikofen
+ZOLL <- read.csv2("../data/data_REF_ZOLL.original.csv")
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+# We read the reference data from AFU
+AFU <- read_xlsx("../data/data_REF_AFU_new.xlsx")
+```
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r file-preparation}
+# We change format of time and date for reference station in Zollikofen
+ZOLL$time <- strptime(ZOLL$time, format="%Y%m%d%H%M")
+ZOLL$time <- as.POSIXct(ZOLL$time, tz = "ETC/GMT")
+attr(ZOLL$time, "tzone")
 
+ZOLL <- ZOLL|>
+  mutate('windspeed' = as.numeric(as.character(unlist(ZOLL[,'fu3010z0']))),
+         'winddirection' = as.numeric(as.character(unlist(ZOLL[,'dkl010z0']))),
+         'precipitation' = as.numeric(as.character(unlist(ZOLL[,'rre150z0']))),
+         'humidity' = as.numeric(as.character(unlist(ZOLL[,'ure200s0']))),
+         'insolation' = as.numeric(as.character(unlist(ZOLL[,'gre000z0']))),
+         'temperature' = as.numeric(as.character(unlist(ZOLL[,'tre200s0']))))|>
+  select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
+
+# We change format of time and date for reference station in front of AFU
+AFU$Zeit <- format(AFU$Zeit, format = "%H:%M")
+AFU$Datum <- strptime(paste(AFU$Datum,AFU$Zeit,sep = " "), format="%Y-%m-%d %H:%M") 
+AFU$Datum <- as.POSIXct(AFU$Datum, tz = "Etc/GMT-2")
+attr(AFU$Datum, "tzone")
+
+AFU <- AFU|>
+  rename('time' =  Datum,
+         'temperature' = Temp,
+         'windspeed' = WG,
+         'winddirection' = WR...5,
+         'insolation' = GS,
+         'pressure' = Luftdruck,
+         'humidity' = Feuchte)|>
+  select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
+```
+
+# Maschine Learning (KNN-Algorithm)
+
+## General Zollikofen
+
+```{r}
+# We load our functions
+source("../R/ml_functions.approach/knn.evaluation.approach.R")
+source("../R/ml_functions.approach/lm.and.knn.model.approach.R")
+source("../R/ml_functions.approach/knn_cv_optimizer.approach.R")
+source("../R/ml_functions.approach/knn.cv.model.creater.approach.R")
+
+set.seed(123)  
+
+# Split 70 % to 30 % 
+split_zoll_approach <- rsample::initial_split(ZOLL, prop = 0.7)
+# We create a training set and a test set
+ZOLL_train_approach <- rsample::training(split_zoll_approach)
+ZOLL_test_approach <- rsample::testing(split_zoll_approach)
+
+# We optimaze the hyperparameter k --> k=170
+my.sequence <-c(1,2,3,4,5, seq(10, to = 50, by = 5))
+parameter.extracter.knn.cv.a(my.sequence, ZOLL_train_approach, ZOLL_test_approach , 10)
+
+
+# We calculate a KNN model
+model.ZOLL.opt.appraoch <- knn.cv.model.a(ZOLL_train_approach, 2)
+
+# We calculate a lm-model (to comapre with)
+model.ZOLL.lm.approach <- lm.model.a(ZOLL_train_approach)
+
+# Evaluation of the models
+# KNN
+eval_model.a(model.ZOLL.opt.appraoch, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zollikofen KNN (opt. k = 2)"), c("Zollikofenn KNN (opt. k = 2)"))
+# lm
+eval_model.a(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
+
+```
+
+## General AFU
+
+```{r}
+set.seed(123)  
+
+# Split 70 % to 30 % 
+split_AFU_approach <- rsample::initial_split(AFU, prop = 0.7)
+# We create a training set and a test set
+AFU_train_approach <- rsample::training(split_AFU_approach)
+AFU_test_approach <- rsample::testing(split_AFU_approach)
+
+# We optimaze the hyperparameter k --> k=170
+my.sequence <-c(1,2,3,4,5, seq(10, to = 50, by = 5))
+parameter.extracter.knn.cv.a(my.sequence, AFU_train_approach, AFU_test_approach , 10)
+
+
+# We calculate a KNN model
+model.AFU.opt.appraoch <- knn.cv.model.a(AFU_train_approach, 5)
+
+# We calculate a lm-model (to comapre with)
+model.AFU.lm.approach <- lm.model.a(AFU_train_approach)
+
+# Evaluation of the models
+# KNN
+eval_model.a(model.AFU.opt.appraoch, AFU_train_approach, AFU_test_approach, 
+           c("Zollikofen KNN (opt. k = 2)"), c("Zollikofenn KNN (opt. k = 2)"))
+# lm
+eval_model.a(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach, 
+           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
+```
+
+## Zollikofen
+
+```{r knn-model-zollikofen}
+# We load our functions
+source("../R/ml_functions/knn.evaluation.R")
+source("../R/ml_functions/lm.and.knn.model.R")
+source("../R/ml_functions/knn_cv_optimizer.R")
+source("../R/ml_functions/knn.cv.model.creater.R")
+
+# For reproducibility (pseudo-random)
+set.seed(123)  
+
+# Split 70 % to 30 % 
+split_zoll <- rsample::initial_split(ZOLL, prop = 0.7)
+# We create a training set and a test set
+ZOLL_train <- rsample::training(split_zoll)
+ZOLL_test <- rsample::testing(split_zoll)
+
+# We optimaze the hyperparameter k --> k=170
+my.sequence <-c(1,2,3,4,5, seq(100, to = 200, by = 10))
+parameter.extracter.knn.cv(my.sequence, ZOLL_train, ZOLL_test , 10)
+
+
+# We calculate a KNN model
+model.ZOLL.opt <- knn.cv.model(ZOLL_train, 170)
+
+# We calculate a lm-model (to comapre with)
+model.ZOLL.lm <- lm.model(ZOLL_train)
+
+# Evaluation of the models
+# KNN
+eval_model(model.ZOLL.opt, ZOLL_train, ZOLL_test, 
+           c("Zollikofen KNN (opt. k = 170)"), c("Zollikofenn KNN (opt. k = 170)"))
+# lm
+eval_model(model.ZOLL.lm, ZOLL_train, ZOLL_test, 
+           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
+```
+
+## AFU
+
+We do it the same for AFU...
+
+```{r}
+# For reproducibility (pseudo-random)
+set.seed(123)  
+# Split 70 % to 30 % 
+split_AFU <- rsample::initial_split(AFU, prop = 0.7)
+# We create a training set and a test set
+AFU_train <- rsample::training(split_AFU)
+AFU_test <- rsample::testing(split_AFU)
+
+
+my.sequence <-  c(1:25)
+# We optimaze the hyperparameter k --> k=17
+parameter.extracter.knn.cv(my.sequence, AFU_train, AFU_test , 10)
+
+# We calculate a KNN model
+model.AFU.opt <- knn.cv.model(AFU_train, 17)
+
+# We calculate a lm-model (to comapre with)
+model.AFU.lm <- lm.model(AFU_train)
+
+# Evaluation of the models
+# KNN
+eval_model(model.AFU.opt, AFU_train, AFU_test, 
+           c("Zollikofen KNN (opt. k = 170)"), c("Zollikofenn KNN (opt. k = 170)"))
+# lm
+eval_model(model.AFU.lm, AFU_train, AFU_test, 
+           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
+```
+
+# Estimate performance of the new loggers
+
+```{r}
+
+
+
+
+
+
+```
