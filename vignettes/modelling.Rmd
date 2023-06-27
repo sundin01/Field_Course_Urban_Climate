@@ -51,8 +51,7 @@ station)
 | Time:        | UTC-2 / GMT-2                            |
 | Source:      | AFU (Amt für Umwelt der Stadt Bern)      |
 
-: Table 2: Metadata for the MeteoSchweiz station in Zollikofen (reference
-station)
+: Table 2: Metadata for AFU (reference station)
 
 +----------------+-----------------------------------------+
 | Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
@@ -144,7 +143,7 @@ AFU <- AFU|>
 
 ## General Zollikofen
 
-```{r}
+```{r calculate-AFU-models, warning=FALSE, error=FALSE, message=FALSE}
 # We load our functions
 source("../R/ml_functions.approach/knn.evaluation.approach.R")
 source("../R/ml_functions.approach/lm.and.knn.model.approach.R")
@@ -169,20 +168,11 @@ model.ZOLL.opt.appraoch <- knn.cv.model.a(ZOLL_train_approach, 2)
 
 # We calculate a lm-model (to comapre with)
 model.ZOLL.lm.approach <- lm.model.a(ZOLL_train_approach)
-
-# Evaluation of the models
-# KNN
-eval_model.a(model.ZOLL.opt.appraoch, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zollikofen KNN (opt. k = 2)"), c("Zollikofenn KNN (opt. k = 2)"))
-# lm
-eval_model.a(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
-
 ```
 
 ## General AFU
 
-```{r}
+```{r calculate-AFU-model, warning=FALSE, error=FALSE, message=FALSE}
 set.seed(123)  
 
 # Split 70 % to 30 % 
@@ -197,23 +187,15 @@ parameter.extracter.knn.cv.a(my.sequence, AFU_train_approach, AFU_test_approach 
 
 
 # We calculate a KNN model
-model.AFU.opt.appraoch <- knn.cv.model.a(AFU_train_approach, 5)
+model.AFU.opt.approach <- knn.cv.model.a(AFU_train_approach, 5)
 
 # We calculate a lm-model (to comapre with)
 model.AFU.lm.approach <- lm.model.a(AFU_train_approach)
-
-# Evaluation of the models
-# KNN
-eval_model.a(model.AFU.opt.appraoch, AFU_train_approach, AFU_test_approach, 
-           c("Zollikofen KNN (opt. k = 2)"), c("Zollikofenn KNN (opt. k = 2)"))
-# lm
-eval_model.a(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach, 
-           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
 ```
 
 ## Zollikofen
 
-```{r knn-model-zollikofen}
+```{r knn-model-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
 # We load our functions
 source("../R/ml_functions/knn.evaluation.R")
 source("../R/ml_functions/lm.and.knn.model.R")
@@ -239,21 +221,13 @@ model.ZOLL.opt <- knn.cv.model(ZOLL_train, 170)
 
 # We calculate a lm-model (to comapre with)
 model.ZOLL.lm <- lm.model(ZOLL_train)
-
-# Evaluation of the models
-# KNN
-eval_model(model.ZOLL.opt, ZOLL_train, ZOLL_test, 
-           c("Zollikofen KNN (opt. k = 170)"), c("Zollikofenn KNN (opt. k = 170)"))
-# lm
-eval_model(model.ZOLL.lm, ZOLL_train, ZOLL_test, 
-           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
 ```
 
 ## AFU
 
 We do it the same for AFU...
 
-```{r}
+```{r warning=FALSE, error=FALSE, message=FALSE }
 # For reproducibility (pseudo-random)
 set.seed(123)  
 # Split 70 % to 30 % 
@@ -264,7 +238,7 @@ AFU_test <- rsample::testing(split_AFU)
 
 
 my.sequence <-  c(1:25)
-# We optimaze the hyperparameter k --> k=17
+# We optimaze the hyperparameter k --> k = 17
 parameter.extracter.knn.cv(my.sequence, AFU_train, AFU_test , 10)
 
 # We calculate a KNN model
@@ -272,23 +246,186 @@ model.AFU.opt <- knn.cv.model(AFU_train, 17)
 
 # We calculate a lm-model (to comapre with)
 model.AFU.lm <- lm.model(AFU_train)
-
-# Evaluation of the models
-# KNN
-eval_model(model.AFU.opt, AFU_train, AFU_test, 
-           c("Zollikofen KNN (opt. k = 170)"), c("Zollikofenn KNN (opt. k = 170)"))
-# lm
-eval_model(model.AFU.lm, AFU_train, AFU_test, 
-           c("Zollikofen with lm-model"), c("Zollikofen with lm-model"))
 ```
 
-# Estimate performance of the new loggers
+# Evaluation, spatial up-scaling and estimate performance 
 
-```{r}
+## Evaluation of AFU
+
+First, we evaluate AFU. We use our simple model (model.AFU.opt) which
+contains only the target (temperature) and a predictor (humidity). We
+compare our knn-model with the lm-model. We easily see that the knn
+performce better than lm-model (RSQ: 0.72 vs. 0.67, RMSE: 2.71 vs. 2.95).
+
+If we use our expanded model (model.AFU.opt.appraoch), which contains the
+target (temperature) and the predictors (humidity, insolation, windspeed
+and winddirection), the performance increase massively (RSQ: 0.83 vs. 0.71,
+RMSE: 2.01 vs. 2.74). We see that especially the error is thereby lowered.
+
+Now, we know the expanded KNN model is superior to all other models. Thus,
+it would be preferable to use this one. Unfortunately, the new loggers
+measure only temperature and humidity. We must therefore work with the
+simple model. However, we recommend to extend the measurements in order to
+be able to use the extended model later.
+
+```{r model-evaluation-AFU,warning=FALSE, error=FALSE, message=FALSE }
+# simple KNN
+eval_model(model.AFU.opt, AFU_train_approach, AFU_test_approach, 
+           c("AFU: KNN (opt. k = 17)"), c("AFU: KNN (opt. k = 17)"))
+
+# simple lm
+eval_model(model.AFU.lm, AFU_train_approach, AFU_test_approach, 
+           c("AFU: lm-model"), c("AFU: lm-model"))
+
+# expanded KNN
+eval_model(model.AFU.opt.appraoch, AFU_train_approach, AFU_test_approach, 
+           c("AFU: KNN-expanded (opt. k = 17)"), 
+           c("AFU: KNN-expanded (opt. k = 17)"))
+
+# expanden lm
+eval_model(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach, 
+           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
+```
+
+## Spatial up-scaling with AFU
+
+```{r upscaling-AFU, warning=FALSE, error=FALSE, message=FALSE}
+# expanded KNN
+eval_model(model.AFU.opt.appraoch, AFU_train_approach, ZOLL, 
+           c("Zoll: KNN-expanded (opt. k = 17)"), 
+           c("Zoll: KNN-expanded (opt. k = 17)"))
+
+# expanden lm
+eval_model(model.AFU.lm.approach, AFU_train_approach, ZOLL, 
+           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
+```
+
+```{r read-new-logger}
+# We read data from the new logger in front of AFU (2m)
+new_logger_AFU <- read.csv("../data/data_logger_new/d6e2769def35.csv")
+
+# We change format of time and date for the new logger in front of AFU
+new_logger_AFU$time <- gsub('[TZ]',' ', new_logger_AFU$time)
+new_logger_AFU$time <- strptime(new_logger_AFU$time, format = "%Y-%m-%d %H:%M")
+new_logger_AFU$time <- as.POSIXct(new_logger_AFU$time, tz = "Etc/GMT")
+attr(new_logger_AFU$time, "tzone")
+# We round the time to the next 10 minute and rename a column
+new_logger_AFU <- new_logger_AFU|>
+  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' = decodedXpayload_humidity)
+
+eval_model(model.AFU.opt, AFU_train_approach, new_logger_AFU, 
+           c("AFU: KNN (opt. k = 17)"), c("AFU: KNN (opt. k = 17)"))
+
+eval_model(model.AFU.lm, AFU_train_approach, new_logger_AFU, 
+           c("AFU: lm-model"), c("AFU: lm-model"))
+```
+
+## Evaluation of Zollikofen
+
+Here, we evaluate Zollikofen. We use our simple model (model.ZOLL.opt)
+which contains only the target (temperature) and a predictor (humidity). We
+compare our knn-model with the lm-model. We easily see that the knn
+performce better than lm-model (RSQ: 0.77 vs. 0.74, RMSE: 2.54 vs. 2.7).
+
+If we use our expanded model (model.ZOLL.opt.appraoch), which contains the
+target (temperature) and the predictors (humidity, insolation, windspeed
+and winddirection), the performance increase massively (RSQ: 0.86 vs. 0.78,
+RMSE: 1.95 vs. 2.46). We see that especially the error is thereby lowered
+massively and the RSQ increase.
+
+Now, we know the expanded KNN model is superior to all other models. Thus,
+it would be preferable to use this one. Unfortunately, the new loggers
+measure only temperature and humidity. We must therefore work with the
+simple model. However, we recommend to extend the measurements in order to
+be able to use the extended model later.
+
+```{r evaluation-of-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
+# simple KNN
+eval_model(model.ZOLL.opt, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: KNN (opt. k = 170)"), c("Zoll: KNN (opt. k = 170)"))
+
+# simple lm
+eval_model(model.ZOLL.lm, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: lm-model"), c("Zoll: lm-model"))
+
+# expanded KNN
+eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
+
+# expanded lm
+eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
+```
+
+## Spatial upscaling with Zollikofen
+
+```{r upsacling-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
+
+
+# expanded KNN
+eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, AFU, 
+           c("AFU: KNN-expanded (opt. k = 17)"), 
+           c("AFU: KNN-expanded (opt. k = 17)"))
+
+# expanden lm
+eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, AFU, 
+           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
 
 
 
-funct
+```
 
+### Zollikofen 2m Logger
 
+```{r read-new-logger-2m}
+
+# We read data from the new logger in Zollikofen (2m)
+new_logger_zoll_2 <- read.csv("../data/data_logger_new/20d1b9040ad9.csv") 
+
+# We change format of time and date for the new logger in Zollikofen (2m)
+new_logger_zoll_2$time <- gsub('[TZ]',' ', new_logger_zoll_2$time)
+new_logger_zoll_2$time <- strptime(new_logger_zoll_2$time, format="%Y-%m-%d %H:%M")
+new_logger_zoll_2$time <- as.POSIXct(new_logger_zoll_2$time, tz = "Etc/GMT")
+attr(new_logger_zoll_2$time, "tzone")
+
+new_logger_zoll_2 <- new_logger_zoll_2|>
+  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' = decodedXpayload_humidity)
+
+# expanded KNN
+eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, new_logger_zoll_2, 
+           c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
+
+# expanded lm
+eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, new_logger_zoll_2, 
+           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
+```
+
+### Zollikofen 3m Logger
+
+```{r read-new-logger-3m}
+# We read data from the new logger in Zollikofen (3m)
+new_logger_zoll_3 <- read.csv("../data/data_logger_new/135a449d34a1.csv")
+
+# We change format of time and date for the new logger in Zollikofen (2m)
+new_logger_zoll_3$time <- gsub('[TZ]',' ', new_logger_zoll_3$time)
+new_logger_zoll_3$time <- strptime(new_logger_zoll_3$time, format="%Y-%m-%d %H:%M")
+new_logger_zoll_3$time <- as.POSIXct(new_logger_zoll_3$time, tz = "Etc/GMT")
+attr(new_logger_zoll_3$time, "tzone")
+
+new_logger_zoll_3 <- new_logger_zoll_3|>
+  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' = decodedXpayload_humidity)
+
+# expanded KNN
+eval_model(model.ZOLL.opt, ZOLL_train_approach, new_logger_zoll_3, 
+           c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
+
+# expanded lm
+eval_model(model.ZOLL.lm, ZOLL_train_approach, new_logger_zoll_3, 
+           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
 ```
