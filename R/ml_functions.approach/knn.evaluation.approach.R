@@ -36,8 +36,8 @@ eval_model.a <- function(mod, df_train, df_test, model.name.train, model.name.te
                       filter(.metric == "rsq") |>
                       pull(.estimate), digits = 2)
 
-  bias.train <- round(mean(df_train$bias, na.rm = TRUE), digits = 2)
-  bias.test <- round(mean(df_test$bias, na.rm = TRUE), digits = 2)
+  bias.train <- round(sum(df_train$bias, na.rm = TRUE)/length(df_train$bias), digits = 2)
+  bias.test <- round(sum(df_test$bias, na.rm = TRUE)/length(df_test$bias), digits = 2)
 
   # visualize as a scatter plot
   # adding information of metrics as sub-titles
@@ -48,8 +48,9 @@ eval_model.a <- function(mod, df_train, df_test, model.name.train, model.name.te
                 linewidth = 0.5, color = "orange") +
     labs(subtitle = paste("RSQ = ",rsq_train,", RMSE = ",rmse_train,", Bias = ",bias.train),
          title = paste("Train:", model.name.train),
-         x = expression(paste("GPP [", mu,"mol CO"[2], " m"^-2, "s"^-1, "]"))) +
-    theme_classic()
+         x = expression(paste("observed Temperature [°C]")),
+         y = expression(paste("fitted Temperature [°C]"))) +
+    theme_light()
 
   plot_2 <- ggplot(data = df_test, aes(temperature, fitted)) +
     geom_point(alpha = 0.3) +
@@ -58,8 +59,9 @@ eval_model.a <- function(mod, df_train, df_test, model.name.train, model.name.te
                 linewidth = 0.5, color = "orange") +
     labs(subtitle = paste("RSQ = ",rsq_test,", RMSE = ",rmse_test,", Bias = ",bias.test),
          title = paste("Test:", model.name.test),
-         x = expression(paste("GPP [", mu,"mol CO"[2], " m"^-2, "s"^-1, "]"))) +
-    theme_classic()
+         x = expression(paste("observed Temperature [°C]")),
+         y = expression(paste("fitted Temperature [°C]"))) +
+    theme_light()
 
   out <- cowplot::plot_grid(plot_1, plot_2)
 
