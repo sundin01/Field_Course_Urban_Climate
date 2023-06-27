@@ -288,7 +288,7 @@ eval_model(model.AFU.lm, AFU_train, AFU_test,
 
 
 
-
+funct
 
 
 ```
