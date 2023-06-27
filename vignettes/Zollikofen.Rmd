@@ -42,35 +42,35 @@ Reference: Zollikofen
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+----------------+----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                           |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number: | 98                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 20d1b9040ad9                           |
-+----------------+----------------------------------------+
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N   |
++-----------------+------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 98                                       |
++-----------------+------------------------------------------+
+| Code grafana    | 20d1b9040ad9                             |
++-----------------+------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger in Zollikofen
 
-+---------------+----------------------------------------+
-| Coordinates:  | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+---------------+----------------------------------------+
-| Altitude:     | 552.9 a.s.l                            |
-+---------------+----------------------------------------+
-| Time format:  | Old logger: UTC-2 / GMT-2              |
-|               |                                        |
-|               | New Logger: UTC / GMT                  |
-+---------------+----------------------------------------+
-| Logger Number | 99                                     |
-+---------------+----------------------------------------+
-| Code grafana  | 135a449d34a1                           |
-+---------------+----------------------------------------+
++----------------+-----------------------------------------+
+| Coordinates:   | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++----------------+-----------------------------------------+
+| Altitude:      | 552.9 a.s.l                             |
++----------------+-----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2               |
+|                |                                         |
+|                | New Logger: UTC / GMT                   |
++----------------+-----------------------------------------+
+| Logger Number  | 99                                      |
++----------------+-----------------------------------------+
+| Code grafana   | 135a449d34a1                            |
++----------------+-----------------------------------------+
 
 : Table 3: Metadata for the 3m Logger in Zollikofen
 
@@ -83,7 +83,7 @@ have the same name as a function from another package).
 
 ```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
 # install and activate all packages we need
-source("../R/packages.R")
+source("../R/general/packages.R")
 
 # We set preferences
 conflicts_prefer(ggplot2::annotate)
@@ -122,7 +122,7 @@ and if yes, where are they?
 
 ```{r visualize-missing-values, warning=FALSE, error=FALSE, message=FALSE}
 # Load the function to handle NAs
-source("../R/function.visualize.na.values.R")
+source("../R/general/function.visualize.na.values.R")
 
 # We check the dataquality of the reference station
 visualize.na.values.without.groups(zoll_ref)
@@ -338,7 +338,7 @@ zoll_night <- zoll_combined|>
 
 ```{r load-functions}
 # We load our functions into the file
-source("../R/plot.functions.R")
+source("../R/general/plot.functions.R")
 ```
 
 ## Line-plot
@@ -529,7 +529,7 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ```{r}
 
-NAMES <- c('24h, new_2 - ref', '24h, old_2 - ref',
+VARIABLE <- c('24h, new_2 - ref', '24h, old_2 - ref',
            '24h, new_3 - ref', '24h, old_3 - ref',
            'day-time, new_2 - ref', 'day-time, old_2 - ref', 
            'day-time, new_3 - ref', 'day-time, old_3 - ref',
@@ -539,94 +539,108 @@ NAMES <- c('24h, new_2 - ref', '24h, old_2 - ref',
            'day-time, new_2 - old_2', 'day-time, new_3 - old_3',
            'night-time, new_2 - old_2', 'night-time, new_3 - old_3')
 
-RMSE <- c(round(rmse(zoll_combined$temp_new_logger_2, zoll_combined$temp_ref), digits = 3),
-          round(rmse(zoll_combined$temp_old_logger_2, zoll_combined$temp_ref), digits = 3),
-          round(rmse(zoll_combined$temp_ref, zoll_combined$temp_new_logger_3), digits = 3),
-          round(rmse(zoll_combined$temp_ref, zoll_combined$temp_old_logger_3), digits = 3),
-          round(rmse(zoll_day$temp_ref, zoll_day$temp_new_logger_2), digits = 3),
-          round(rmse(zoll_day$temp_ref, zoll_day$temp_old_logger_2), digits = 3),
-          round(rmse(zoll_day$temp_ref, zoll_day$temp_new_logger_3), digits = 3),
-          round(rmse(zoll_day$temp_ref, zoll_day$temp_old_logger_3), digits = 3),
-          round(rmse(zoll_night$temp_ref, zoll_night$temp_new_logger_2), digits = 3),
-          round(rmse(zoll_night$temp_ref, zoll_night$temp_old_logger_2), digits = 3),
-          round(rmse(zoll_night$temp_ref, zoll_night$temp_new_logger_3), digits = 3),
-          round(rmse(zoll_night$temp_ref, zoll_night$temp_old_logger_3), digits = 3),
-          round(rmse(zoll_combined$temp_old_logger_2, zoll_combined$temp_new_logger_2), 
+
+
+round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_ref)^2)), digits = 3)
+
+RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
                 digits = 3),
-          round(rmse(zoll_combined$temp_old_logger_3, zoll_combined$temp_new_logger_3), 
+          round(sqrt(mean((zoll_combined$temp_old_logger_2-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
                 digits = 3),
-          round(rmse(zoll_day$temp_old_logger_2, zoll_day$temp_new_logger_2), 
+          round(sqrt(mean((zoll_combined$temp_new_logger_3-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
                 digits = 3),
-          round(rmse(zoll_day$temp_new_logger_3, zoll_day$temp_new_logger_3), 
+          round(sqrt(mean((zoll_combined$temp_old_logger_3-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
                 digits = 3),
-          round(rmse(zoll_night$temp_old_logger_2, zoll_night$temp_newlogger_2),
+          round(sqrt(mean((zoll_day$temp_new_logger_2-zoll_day$temp_ref)^2, na.rm = TRUE)), 
                 digits = 3),
-          round(rmse(zoll_night$temp_old_logger_3, zoll_night$temp_old_logger_3), 
+          round(sqrt(mean((zoll_day$temp_old_logger_2-zoll_day$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_day$temp_new_logger_3-zoll_day$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_day$temp_old_logger_3-zoll_day$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_night$temp_new_logger_2-zoll_night$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_night$temp_old_logger_2-zoll_night$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_night$temp_new_logger_3-zoll_night$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_night$temp_old_logger_3-zoll_night$temp_ref)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_combined$temp_old_logger_2-zoll_combined$temp_new_logger_2)^2,
+                          na.rm = TRUE)), digits = 3),
+          round(sqrt(mean((zoll_combined$temp_old_logger_3-zoll_combined$temp_new_logger_3)^2,
+                          na.rm = TRUE)), digits = 3),
+          round(sqrt(mean((zoll_day$temp_old_logger_2-zoll_day$temp_new_logger_2)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_day$temp_new_logger_3-zoll_day$temp_new_logger_3)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_night$temp_old_logger_2-zoll_night$temp_newlogger_2)^2, na.rm = TRUE)), 
+                digits = 3),
+          round(sqrt(mean((zoll_night$temp_old_logger_3-zoll_night$temp_old_logger_3)^2, na.rm = TRUE)), 
                 digits = 3))
 
-MAE <- c(round(mae(zoll_combined$temp_ref, zoll_combined$temp_new_logger_2), digits = 3),
-         round(mae(zoll_combined$temp_ref, zoll_combined$temp_old_logger_2), digits = 3),
-         round(mae(zoll_combined$temp_ref, zoll_combined$temp_new_logger_3), digits = 3),
-         round(mae(zoll_combined$temp_ref, zoll_combined$temp_old_logger_3), digits = 3),
-         round(mae(zoll_day$temp_ref, zoll_day$temp_new_logger_2), digits = 3),
-         round(mae(zoll_day$temp_ref, zoll_day$temp_old_logger_2), digits = 3),
-         round(mae(zoll_day$temp_ref, zoll_day$temp_new_logger_3), digits = 3),
-         round(mae(zoll_day$temp_ref, zoll_day$temp_old_logger_3), digits = 3),
-         round(mae(zoll_night$temp_ref, zoll_night$temp_new_logger_2), digits = 3),
-         round(mae(zoll_night$temp_ref, zoll_night$temp_old_logger_2), digits = 3),
-         round(mae(zoll_night$temp_ref, zoll_night$temp_new_logger_3), digits = 3),
-         round(mae(zoll_night$temp_ref, zoll_night$temp_old_logger_3), digits = 3),
-         round(mae(zoll_combined$temp_old_logger_2, zoll_combined$temp_new_logger_2), 
-                digits = 3),
-         round(mae(zoll_combined$temp_old_logger_3, zoll_combined$temp_new_logger_3), 
-                digits = 3),
-         round(mae(zoll_day$temp_old_logger_2, zoll_day$temp_new_logger_2), 
-                digits = 3),
-         round(mae(zoll_day$temp_new_logger_3, zoll_day$temp_new_logger_3), 
-                digits = 3),
-         round(mae(zoll_night$temp_old_logger_2, zoll_night$temp_newlogger_2),
-                digits = 3),
-         round(mae(zoll_night$temp_old_logger_3, zoll_night$temp_old_logger_3), 
-                digits = 3))
+MAE <- c(round(mean(abs(zoll_combined$temp_new_logger_2-zoll_combined$temp_ref),na.rm = TRUE), digits = 3),
+          round(mean(abs(zoll_combined$temp_old_logger_2-zoll_combined$temp_ref), na.rm = TRUE), digits = 3),
+          round(mean(abs(zoll_combined$temp_new_logger_3-zoll_combined$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_combined$temp_old_logger_3-zoll_combined$temp_ref), na.rm = TRUE), digits = 3),
+          round(mean(abs(zoll_day$temp_new_logger_2-zoll_day$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_day$temp_old_logger_2-zoll_day$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_day$temp_new_logger_3-zoll_day$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_day$temp_old_logger_3-zoll_day$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_night$temp_new_logger_2-zoll_night$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_night$temp_old_logger_2-zoll_night$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_night$temp_new_logger_3-zoll_night$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_night$temp_old_logger_3-zoll_night$temp_ref), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_combined$temp_old_logger_2-zoll_combined$temp_new_logger_2),
+                     na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_combined$temp_old_logger_3-zoll_combined$temp_new_logger_3),
+                          na.rm = TRUE), digits = 3),
+          round(mean(abs(zoll_day$temp_old_logger_2-zoll_day$temp_new_logger_2), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_day$temp_new_logger_3-zoll_day$temp_new_logger_3), na.rm = TRUE),digits = 3),
+          round(mean(abs(zoll_night$temp_old_logger_2-zoll_night$temp_newlogger_2), 
+                     na.rm = TRUE), digits = 3),
+          round(mean(abs(zoll_night$temp_old_logger_3-zoll_night$temp_old_logger_3), 
+                     na.rm = TRUE),digits = 3))
 
-BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref)/
+BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
                    length(zoll_combined$temp_ref)), digits = 3), 
-          round((sum(zoll_combined$temp_old_logger_2 - zoll_combined$temp_ref)/
+          round((sum(zoll_combined$temp_old_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
                    length(zoll_combined$temp_ref)), digits = 3),
-          round((sum(zoll_combined$temp_new_logger_3 - zoll_combined$temp_ref)/
+          round((sum(zoll_combined$temp_new_logger_3 - zoll_combined$temp_ref, na.rm = TRUE)/
                    length(zoll_combined$temp_ref)), digits = 3),
-          round((sum(zoll_combined$temp_old_logger_3 - zoll_combined$temp_ref)/
+          round((sum(zoll_combined$temp_old_logger_3 - zoll_combined$temp_ref, na.rm = TRUE)/
                    length(zoll_combined$temp_ref)), digits = 3),
-          round((sum(zoll_day$temp_new_logger_2 - zoll_day$temp_ref)/
+          round((sum(zoll_day$temp_new_logger_2 - zoll_day$temp_ref, na.rm = TRUE)/
                    length(zoll_day$temp_ref)), digits = 3), 
-          round((sum(zoll_day$temp_old_logger_2 - zoll_day$temp_ref)/
+          round((sum(zoll_day$temp_old_logger_2 - zoll_day$temp_ref, na.rm = TRUE)/
                    length(zoll_day$temp_ref)), digits = 3),
-          round((sum(zoll_day$temp_new_logger_3 - zoll_day$temp_ref)/
+          round((sum(zoll_day$temp_new_logger_3 - zoll_day$temp_ref, na.rm = TRUE)/
                    length(zoll_day$temp_ref)), digits = 3),
-          round((sum(zoll_day$temp_old_logger_3 - zoll_day$temp_ref)/
+          round((sum(zoll_day$temp_old_logger_3 - zoll_day$temp_ref, na.rm = TRUE)/
                    length(zoll_day$temp_ref)), digits = 3),
-          round((sum(zoll_night$temp_new_logger_2 - zoll_night$temp_ref)/
+          round((sum(zoll_night$temp_new_logger_2 - zoll_night$temp_ref, na.rm = TRUE)/
                    length(zoll_night$temp_ref)), digits = 3), 
-          round((sum(zoll_night$temp_old_logger_2 - zoll_night$temp_ref)/
+          round((sum(zoll_night$temp_old_logger_2 - zoll_night$temp_ref, na.rm = TRUE)/
                    length(zoll_night$temp_ref)), digits = 3),
-          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_ref)/
+          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_ref, na.rm = TRUE)/
                    length(zoll_night$temp_ref)), digits = 3),
-          round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
+          round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref, na.rm = TRUE)/
                    length(zoll_night$temp_ref)), digits = 3),
-          round((sum(zoll_combined$temp_old_logger_3 - zoll_combined$temp_ref)/
-                   length(zoll_combined$temp_ref)), digits = 3),
-          round((sum(zoll_combined$temp_old_logger_3 - zoll_combined$temp_ref)/
-                   length(zoll_combined$temp_ref)), digits = 3),
-          round((sum(zoll_day$temp_old_logger_3 - zoll_day$temp_ref)/
-                   length(zoll_day$temp_ref)), digits = 3),
-          round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
-                   length(zoll_night$temp_ref)), digits = 3),
-                 round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
-                   length(zoll_night$temp_ref)), digits = 3),
-          round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref)/
+          round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_old_logger_2, na.rm = TRUE)/
+                   length(zoll_combined$temp_old_logger_2)), digits = 3),
+          round((sum(zoll_combined$temp_new_logger_3 - zoll_combined$temp_old_logger_3, na.rm = TRUE)/
+                   length(zoll_combined$temp_old_logger_3)), digits = 3),
+          round((sum(zoll_day$temp_new_logger_2 - zoll_day$temp_old_logger_2, na.rm = TRUE)/
+                   length(zoll_day$temp_old_logger_2)), digits = 3),
+          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_old_logger_3, na.rm = TRUE)/
+                   length(zoll_night$temp_old_logger_3)), digits = 3),
+                 round((sum(zoll_night$temp_new_logger_2 - zoll_night$temp_old_logger_2, na.rm = TRUE)/
+                   length(zoll_night$temp_old_logger_2)), digits = 3),
+          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_old_logger_3, na.rm = TRUE)/
                    length(zoll_night$temp_ref)), digits = 3))
 
-test <- cbind(NAMES, RMSE, MAE, BIAS)
+test <- cbind(VARIABLE, RMSE, MAE, BIAS)
 knitr::kable(test, caption = 'Table 1: Overview about error-metrics at Zollikofen')|>
     kableExtra::kable_classic_2(full_width = T)
 ```
