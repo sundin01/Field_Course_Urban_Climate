@@ -1,0 +1,529 @@
+---
+title: "Workflow AFU"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+editor_options:
+  markdown:
+    wrap: 75
+---
+
+Course: Field Course Micrometeorology and Urban Climate at the University
+of Bern (Institute of Geography)
+
+Supervisor: Prof. Dr. Stefan Brönnimann
+
+Adviser: Dr. Moritz Gubler
+
+[Do you have questions about the workflow? Contact the
+Authors:]{.underline}
+
+Bigler Patrick
+([patrick.bigler1\@students.unibe.ch](mailto:patrick.bigler1@students.unibe.ch){.email})
+
+Sarah Ogi (sarah.ogi\@students.unibe.ch)
+
+Markella Bouchoriku (markella.bouchoriku\@students.unibe.ch )
+
+Reference: Amt für Umwelt (AFU)
+
+# Preparation
+
+First, we install and / or load packages we need. Important is the package
+"conflicted". It enables us to chose if different functions have the same
+call but do not make the same thing (a function in a certain package can
+have the same name as a function from another package).
+
+```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
+# install and activate all packages we need
+use_pkgs <-  c("dplyr", "tidyr", "readr", "lubridate", "stringr", "purrr",
+               "ggplot2", "tidyverse", "visdat", "terra", "hexbin", "jsonlite",
+               "MODISTools", "forcats", "yardstick", "recipes", "caret",
+               "broom", "skimr", "cowplot", "scico", "hwsdr", "usethis",
+               "renv", "rsample", "modelr", "rmarkdown", "rpart",
+               "rpart.plot", "ranger", "sessioninfo", "ncdf4","ggcorrplot",
+               "corrr", "corrplot", "lattice", "ggpmisc", "caret", "recipes",
+               "conflicted", "naniar","openxlsx", "readxl", "zoo", "kableExtra", 
+               "Metrics", "modeest")
+
+new_pkgs <- use_pkgs[!(use_pkgs %in% installed.packages()[, "Package"])]
+if (length(new_pkgs) > 0) install.packages(new_pkgs,repos = "http://cran.us.r-project.org")
+invisible(lapply(use_pkgs, require, character.only = TRUE))
+
+# We set preferences
+conflicts_prefer(ggplot2::annotate)
+conflicts_prefer(dplyr::select)
+conflicts_prefer(dplyr::mutate)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dplyr::rename)
+conflicts_prefer(Metrics::rmse)
+conflicts_prefer(Metrics::mae)
+```
+
+We read all the data we need:
+
+```{r read_the_files, warning=FALSE, error=FALSE, message=FALSE}
+# We read a file with data from the old loggers
+old_logger <- read_xlsx("../data/data_logger_old.xlsx")
+
+# We read data from the new logger in front of AFU (2m)
+new_logger_AFU <- read.csv("../data/data_logger_new/d6e2769def35.csv")
+
+# We read data from the station in front of AFU (2m)
+AFU_ref <- read_xlsx("../data/data_REF_AFU_new.xlsx")
+```
+
+# Data quality
+
+Now we need a first impression about the data. Are there any missing values
+and if yes, where are they?
+
+## Missing Values
+
+```{r handle_missing_values,  warning=FALSE, error=FALSE, message=FALSE}
+# Load the function to handle NAs
+source("../../AGDS_Bigler/R/general/function.visualize.na.values.R")
+
+# We check the dataquality of the reference station
+visualize.na.values.without.groups(AFU_ref)
+
+# We check the dataquality of the new loggers
+visualize.na.values.without.groups(new_logger_AFU)
+
+# We check the dataquality of the old loggers
+visualize.na.values.without.groups(old_logger)
+```
+
+## Time-shift
+
+Because not all data has the same source we have to make sure all data
+works in the same time zone. For that we use lubridate which gives all the
+data a proper time- and date stamp. The old loggers works with CEST
+(Central Europe Summer Time). We define this time zone for the loggers
+(CEST = GMT -2). We do the same for the reference station due to the same
+reasons as for the old loggers. The new loggers works on UTC and therefore,
+we define it as GMT. If we defined time zones, R will do the corrections
+automatically.
+
+Further, it is easier to work with one data frame. That is why me join all
+three data frames into one. We make sure that we only use data if the date
+and time occur in all three data frames. For that, we round the time to the
+next 10 minutes.
+
+```{r time_shift, error=FALSE, message=FALSE, warning=FALSE}
+#First, change format of time and date for the old logger in front of AFU
+old_logger$Sommerzeit <- strptime(old_logger$Sommerzeit, format="%Y-%m-%d %H:%M")
+old_logger$Sommerzeit <- as.POSIXct(old_logger$Sommerzeit, tz = "Etc/GMT-2")
+attr(old_logger$Sommerzeit, "tzone")
+# We change a name of the column
+old_logger <- old_logger|>
+  rename('time' = Sommerzeit)
+
+# We change format of time and date for reference station in front of AFU
+AFU_ref$Zeit <- format(AFU_ref$Zeit, format = "%H:%M")
+AFU_ref$Datum <- strptime(paste(AFU_ref$Datum,AFU_ref$Zeit,sep = " "), format="%Y-%m-%d %H:%M") 
+AFU_ref$Datum <- as.POSIXct(AFU_ref$Datum, tz = "Etc/GMT-2")
+attr(AFU_ref$Datum, "tzone")
+# We change the class of the temperature column to numeric abd rename a column
+AFU_ref <- AFU_ref|>
+  mutate(temp_ref = as.numeric(Temp))|>
+  rename('time' = Datum)
+
+# We change format of time and date for the new logger in front of AFU
+new_logger_AFU$time <- gsub('[TZ]',' ', new_logger_AFU$time)
+new_logger_AFU$time <- strptime(new_logger_AFU$time, format = "%Y-%m-%d %H:%M")
+new_logger_AFU$time <- as.POSIXct(new_logger_AFU$time, tz = "Etc/GMT")
+attr(new_logger_AFU$time, "tzone")
+# We round the time to the next 10 minute and rename a column
+new_logger_AFU <- new_logger_AFU|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))|>
+  rename('temp_new_logger' = decodedXpayload_temperature)
+
+# We join two datasets
+AFU_all_1 <- dplyr::inner_join(AFU_ref, new_logger_AFU, by = 'time')
+# We join two datasets
+AFU_all_2 <- dplyr::inner_join(AFU_all_1, old_logger, by = 'time')
+# We change the class of a column ans select only columns we need
+AFU_combined <- AFU_all_2|>
+  mutate(temp_ref = as.numeric(Temp))|>
+  select(c('time', 'temp_ref', 'Log_83', 'temp_new_logger'))|>
+  rename(temp_old_logger = 'Log_83')|>
+  mutate('Row' = c(1 : 4151))
+
+# We make sure that every error appear as NA
+AFU_combined[AFU_combined == -9999] <- NA
+```
+
+Because we want to be sure that the time shift worked we visualize 48h of
+each data file.
+
+```{r vis_time_shift_control, warning=FALSE, error=FALSE, message=FALSE}
+# We plot 48h to be sure that the time shift worked
+AFU_combined|>
+  # We filter 48h
+  filter(Row > 1402 & Row < 1688)|>
+  # We create a new table
+    pivot_longer(cols = c(temp_ref, temp_new_logger, temp_old_logger),
+               names_to = "Legend",
+               values_to = "values")|>
+  # We create a ggplot - line plot
+  ggplot(aes(x = time, y = values, color = Legend)) + 
+  geom_line(linewidth = 0.3)+
+  labs(x = 'Time', y = 'Absolute Temperature', title = 'AFU: Time shift control')+
+  theme_light()
+```
+
+## Calculate anomalies
+
+We are not interested in the absolute values but in the anomalies. Here, we
+calculate those and add it to our data frame.
+
+```{r calculate_anomalies, warning=FALSE, error=FALSE, message=FALSE}
+AFU_combined <- AFU_combined|>
+  mutate('Anomaly_new_log_ref' = temp_new_logger - temp_ref,
+         'Anomaly_old_log_ref' = temp_old_logger - temp_ref,
+         'Anomaly_new_log_old_log' = temp_new_logger - temp_old_logger)
+```
+
+## Suspected data
+
+We want a "feeling" for our data. Are there outliers? If yes, why there? To
+answer those questions we aggregate the 10 minute resolution to a 2 hour
+resolution and plot them. We can see that most of the anamolies are in a
+[-3, 3] °C range. But there also are outliers up to about 20°C. Maybe there
+were a problem with the station.
+
+We filter our data to determine those "extreme-outliers" because it does
+not seems like a expected variability. In the data we see, that the
+reference station seems to be broken down. The station repeatedly measures
+the same value, followed by NAs. The station probably got stuck. The second
+peak is about 5-6 °C. Because this event occurred only 2 hours after the
+station failure, we assume that this was also due to problems with the
+measuring station. Therefore, we exclude this part of the data from our
+analysis.
+
+```{r suspected_data, warning=FALSE, error=FALSE, message=FALSE}
+# We create a column-plot of the anomalies. 
+AFU_combined|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "2 hours"))|>
+  group_by(aggregate_hourly)|>
+  mutate(daily = lubridate::day(time))|>
+  # We create a new table
+  pivot_longer(cols = c(`Anomaly_new_log_ref`, 
+                        `Anomaly_old_log_ref`, 
+                        `Anomaly_new_log_old_log`),
+                         names_to = "Legend",
+                         values_to = "values")|>
+  ggplot(aes(x = daily, y = values, color = Legend))+
+  geom_col(position="dodge", stat="identity")+
+    guides(size = FALSE) + 
+  theme(plot.margin = margin(2,.8,2,.8, "cm"),
+        plot.background = element_rect(fill = "darkgrey"))+
+  theme_light()
+
+# We filter the data for all values > 3 °C --> check the rows!
+AFU_combined|>
+  filter(`Anomaly_new_log_ref` > 3 | 
+           `Anomaly_old_log_ref` > 3 | 
+           `Anomaly_new_log_old_log` > 3 )
+
+# We filter the dataset by rows and exclude some data
+# Row numbers 3316 - 3489 (7.6.23, 7:00 - 8.6.23, 12:00)
+# Row numbers 3513 - 3525 (8.6.23, 16:00 - 8.6.23, 18:00)
+AFU_combined|>
+  filter(! Row %in% c(3316:3489, 3513:3525))|>
+    mutate(aggregate_hourly = lubridate::round_date(time, "2 hours"))|>
+  group_by(aggregate_hourly)|>
+  mutate(daily = lubridate::day(time))|>
+  # We create a new table
+  pivot_longer(cols = c(`Anomaly_new_log_ref`, 
+                        `Anomaly_old_log_ref`, 
+                        `Anomaly_new_log_old_log`),
+                         names_to = "Legend",
+                         values_to = "values")|>
+  ggplot(aes(x = daily, y = values, color = Legend))+
+  geom_col(position="dodge", stat="identity")+
+    guides(size = FALSE) + 
+  theme(plot.margin = margin(2,.8,2,.8, "cm"),
+        plot.background = element_rect(fill = "darkgrey"))+
+  theme_light()
+
+# We redefine the data and exclude the rows where the measuring station was broken.   
+AFU_combined <- AFU_combined|>
+  filter(! Row %in% c(3316:3489, 3513:3525))|>
+  drop_na()
+```
+
+# Analysis
+
+Now we are ready for the analysis. First, we write some dynamic functions
+for the plots. After that, we use box-plot, density-plots and line-graphs
+to visualize the performance of the loggers. After that, we calculate the
+main statistic parameters and the errors. Because the problems are probably
+higher due to solar radiation through the day, we differentiate between 24h
+(whole day), 6-22 (day-time) and 22-6 (night-time).
+
+## Data Split
+
+```{r split_data }
+AFU_day <- AFU_combined|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly >= 6 & hourly <= 22)
+
+AFU_night <- AFU_combined|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly < 7 | hourly > 21)
+```
+
+## Functions
+
+Here, we create function for the plots (line-plot, box-plot and
+density-plot. We add ± standard deviation and a dot-dashed zero line
+because we want to determine whether the data is accurate or and precise.
+
+```{r function, warning=FALSE, error=FALSE, message=FALSE}
+source("../R/plot.functions.R")
+```
+
+## Line-plot
+
+Whole Day
+
+```{r line_graph, warning=FALSE, error=FALSE, message=FALSE}
+# Line-plot new logger - reference station at AFU
+overview_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6)
+
+# Line-plot old logger - reference station at AFU
+overview_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7)
+
+# line-plot new logger - old logger at AFU
+overview_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8)
+
+```
+
+## Scatter-Plot
+
+```{r scatter_plot}
+# Scatter-plot new logger - reference station at AFU
+overview_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
+# scatterplot old logger - reference station at AFU
+overview_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE)
+# scatterplot new logger - old logger at AFU
+overview_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE)
+```
+
+## Box-plot
+
+```{r boxplot, warning=FALSE, error=FALSE, message=FALSE}
+# Boxplot new logger - reference station at AFU
+boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6)
+
+# Boxplot old logger - reference station at AFU
+boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7)
+
+# Boxplot new logger - old logger at AFU
+boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8)
+```
+
+Day-time
+
+```{r boxplot_day}
+# Boxplot new logger - reference station at AFU (daytime)
+boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
+
+# Boxplot old logger - reference station at AFU (daytime)
+boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE)
+
+# Boxplot new logger - old logger at AFU (daytime)
+boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE)
+```
+
+Night-time
+
+```{r boxplot_night}
+# Boxplot new logger - reference station at AFU (nighttime)
+boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE, day = FALSE)
+
+# Boxplot old logger - reference station at AFU (nighttime)
+boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE, day = FALSE)
+
+# Boxplot new logger - old logger at AFU (nighttime)
+boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE, day = FALSE)
+```
+
+## Density-plot
+
+Whole day
+
+```{r density-plot, warning=FALSE, error=FALSE, message=FALSE}
+
+# Densityplot new logger - reference station at AFU
+densityplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6)
+
+# Densityplot old logger - reference station at AFU
+densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7)
+
+# Densityplot new logger - old logger at AFU
+densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8)
+```
+
+Day-time
+
+```{r density_day}
+# Densityplot new logger - reference station at AFU (daytime)
+densityplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
+
+# Densityplot old logger - reference station at AFU (daytime)
+densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE)
+
+# Densityplot new logger - old logger at AFU (daytime)
+densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE)
+```
+
+Night-time
+
+```{r density_night}
+# Densityplot new logger - reference station at AFU (nighttime)
+densityplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE, day = FALSE)
+
+# Densityplot old logger - reference station at AFU (nighttime)
+densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE, day = FALSE)
+
+# Densityplot new logger - old logger at AFU (nighttime)
+densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE, day = FALSE)
+```
+
+# Statistics
+
+## Errors
+
+```{r errors}
+NAMES <- c('24h, new-ref', '24h, old-ref', 
+           'day-time, new-ref', 'day-time, old-ref', 
+           'night-time, new-ref', 'night-time, old-ref')
+
+RMSE <- c(round(rmse(AFU_combined$temp_ref, AFU_combined$temp_new_logger), digits = 3),
+          round(rmse(AFU_combined$temp_ref, AFU_combined$temp_old_logger), digits = 3),
+          round(rmse(AFU_day$temp_ref, AFU_day$temp_new_logger), digits = 3),
+          round(rmse(AFU_day$temp_ref, AFU_day$temp_old_logger), digits = 3),
+          round(rmse(AFU_night$temp_ref, AFU_nigh$temp_new_logger), digits = 3),
+          round(rmse(AFU_night$temp_ref, AFU_night$temp_old_logger), digits = 3))
+
+MAE <- c(round(mae(AFU_combined$temp_ref, AFU_combined$temp_new_logger), digits = 3),
+         round(mae(AFU_combined$temp_ref, AFU_combined$temp_old_logger), digits = 3),
+         round(mae(AFU_day$temp_ref, AFU_day$temp_new_logger), digits = 3),
+         round(mae(AFU_day$temp_ref, AFU_day$temp_old_logger), digits = 3),
+         round(mae(AFU_night$temp_ref, AFU_night$temp_new_logger), digits = 3),
+         round(mae(AFU_night$temp_ref, AFU_night$temp_old_logger), digits = 3))
+
+BIAS <- c(round((sum(AFU_combined$temp_new_logger - AFU_combined$temp_ref)/length(AFU_combined$temp_ref)), digits = 3), 
+          round((sum(AFU_combined$temp_old_logger - AFU_combined$temp_ref)/length(AFU_combined$temp_ref)), digits = 3),
+          round((sum(AFU_day$temp_new_logger - AFU_day$temp_ref)/length(AFU_day$temp_ref)), digits = 3), 
+          round((sum(AFU_day$temp_old_logger - AFU_day$temp_ref)/length(AFU_day$temp_ref)), digits = 3),
+          round((sum(AFU_night$temp_new_logger - AFU_night$temp_ref)/length(AFU_night$temp_ref)), digits = 3), 
+          round((sum(AFU_night$temp_old_logger - AFU_night$temp_ref)/length(AFU_night$temp_ref)), digits = 3))
+
+test <- cbind(NAMES, RMSE, MAE, BIAS)
+knitr::kable(test, caption = 'Table 1: Overview about error-metrics')|>
+    kableExtra::kable_classic_2(full_width = T)
+  
+```
+
+## Main Parameters
+
+```{r statistics}
+# Calculate the main statistic parameters
+knitr::kable(AFU_combined|>
+  rename(new_ref = `Anomaly_new_log_ref`,
+         old_ref = `Anomaly_old_log_ref`,
+         new_old = `Anomaly_new_log_old_log`)|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  pivot_longer(cols = c(`new_ref`, 
+                        `old_ref`, 
+                        `new_old`),
+                         names_to = "Device",
+                         values_to = "values")|>
+  select('Device', 'values')|>
+  group_by(Device)|>
+  dplyr::summarise(mean = round(mean(values, na.rm = TRUE), digits = 3),
+         median = round(median(values, na.rm = TRUE), digits = 3),
+         max = round(max(values, na.rm = TRUE), digits = 3),
+         min = round(min(values, na.rm = TRUE), digits = 3),
+         std = round(sd(values, na.rm = TRUE), digits = 3),
+         q25 = round(quantile(values, probs = .25,na.rm = TRUE), digits = 3),
+         q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
+         iqr = round(IQR(values,na.rm = TRUE), digits = 3),
+         spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
+  caption = "Table 2: Main statistics parameters of AFU (whole day)",
+  align = c('l', rep('c', times = 10)))|>
+  kableExtra::kable_classic_2(full_width = T)
+
+knitr::kable(AFU_combined|>
+  rename(new_ref = `Anomaly_new_log_ref`,
+         old_ref = `Anomaly_old_log_ref`,
+         new_old = `Anomaly_new_log_old_log`)|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly >= 6 & hourly <= 22)|>
+  pivot_longer(cols = c(`new_ref`, 
+                        `old_ref`, 
+                        `new_old`),
+                         names_to = "Device",
+                         values_to = "values")|>
+  select('Device', 'values')|>
+  group_by(Device)|>
+  dplyr::summarise(mean = round(mean(values, na.rm = TRUE), digits = 3),
+         median = round(median(values, na.rm = TRUE), digits = 3),
+         max = round(max(values, na.rm = TRUE), digits = 3),
+         min = round(min(values, na.rm = TRUE), digits = 3),
+         std = round(sd(values, na.rm = TRUE), digits = 3),
+         q25 = round(quantile(values, probs = .25,na.rm = TRUE), digits = 3),
+         q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
+         iqr = round(IQR(values,na.rm = TRUE), digits = 3),
+         spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
+  caption = "Table 3: Main statistics parameters of AFU (night-time)", 
+  align = c('l', rep('c', times = 10)))|>
+  kableExtra::kable_classic_2(full_width = T)
+
+knitr::kable(AFU_combined|>
+  rename(new_ref = `Anomaly_new_log_ref`,
+         old_ref = `Anomaly_old_log_ref`,
+         new_old = `Anomaly_new_log_old_log`)|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  mutate(hourly = lubridate::hour(aggregate_hourly))|>
+  filter(hourly < 7 | hourly > 21)|>
+  pivot_longer(cols = c(`new_ref`, 
+                        `old_ref`, 
+                        `new_old`),
+                         names_to = "Device",
+                         values_to = "values")|>
+  select('Device', 'values')|>
+  group_by(Device)|>
+  dplyr::summarise(mean = round(mean(values, na.rm = TRUE), digits = 3),
+         median = round(median(values, na.rm = TRUE), digits = 3),
+         max = round(max(values, na.rm = TRUE), digits = 3),
+         min = round(min(values, na.rm = TRUE), digits = 3),
+         std = round(sd(values, na.rm = TRUE), digits = 3),
+         q25 = round(quantile(values, probs = .25,na.rm = TRUE), digits = 3),
+         q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
+         iqr = round(IQR(values,na.rm = TRUE), digits = 3),
+         spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
+  caption = "Table 4: Main statistics parameters of AFU (night-time)", 
+  align = c('l', rep('c', times = 10)))|>
+  kableExtra::kable_classic_2(full_width = T)
+```
