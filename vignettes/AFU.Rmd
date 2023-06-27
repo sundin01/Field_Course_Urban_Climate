@@ -31,6 +31,34 @@ Markella Bouchoriku (markella.bouchoriku\@students.unibe.ch )
 
 Reference: Amt für Umwelt (AFU)
 
+# Introduction
+
+|              |                                          |
+|--------------|------------------------------------------|
+| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
+| Altitude:    | 554.5 a.s.l.                             |
+| Time:        | UTC-2 / GMT-2                            |
+| Source:      | AFU (Amt für Umwelt der Stadt Bern)      |
+
+: Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
+station)
+
++----------------+------------------------------------------+
+| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
++----------------+------------------------------------------+
+| Altitude:      | 554.5 a.s.l.                             |
++----------------+------------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2                |
+|                |                                          |
+|                | New Logger: UTC / GMT                    |
++----------------+------------------------------------------+
+| Logger Number: | 83                                       |
++----------------+------------------------------------------+
+| Code grafana   | d6e2769def35                             |
++----------------+------------------------------------------+
+
+: Table 2: Metadata for the 2m Logger at AFU
+
 # Preparation
 
 First, we install and / or load packages we need. Important is the package
@@ -40,19 +68,7 @@ have the same name as a function from another package).
 
 ```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
 # install and activate all packages we need
-use_pkgs <-  c("dplyr", "tidyr", "readr", "lubridate", "stringr", "purrr",
-               "ggplot2", "tidyverse", "visdat", "terra", "hexbin", "jsonlite",
-               "MODISTools", "forcats", "yardstick", "recipes", "caret",
-               "broom", "skimr", "cowplot", "scico", "hwsdr", "usethis",
-               "renv", "rsample", "modelr", "rmarkdown", "rpart",
-               "rpart.plot", "ranger", "sessioninfo", "ncdf4","ggcorrplot",
-               "corrr", "corrplot", "lattice", "ggpmisc", "caret", "recipes",
-               "conflicted", "naniar","openxlsx", "readxl", "zoo", "kableExtra", 
-               "Metrics", "modeest")
-
-new_pkgs <- use_pkgs[!(use_pkgs %in% installed.packages()[, "Package"])]
-if (length(new_pkgs) > 0) install.packages(new_pkgs,repos = "http://cran.us.r-project.org")
-invisible(lapply(use_pkgs, require, character.only = TRUE))
+source("../R/packages.R")
 
 # We set preferences
 conflicts_prefer(ggplot2::annotate)
