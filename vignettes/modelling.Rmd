@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Modelling Urban Climate"
 output:
   html_document:
     toc: yes
@@ -34,70 +34,70 @@ Reference: Zollikofen
 
 # Introduction
 
-|              |                     |
-|--------------|---------------------|
-| Coordinates: | 7°28' E, 46°59' N   |
-| Altitude:    | 552 a.s.l.          |
-| Time:        | UTC / GMT           |
-| Source:      | Meteo Schweiz       |
+|              |                   |
+|--------------|-------------------|
+| Coordinates: | 7°28' E, 46°59' N |
+| Altitude:    | 552 a.s.l.        |
+| Time:        | UTC / GMT         |
+| Source:      | Meteo Schweiz     |
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-|              |                                          |
-|--------------|------------------------------------------|
-| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
-| Altitude:    | 554.5 a.s.l.                             |
-| Time:        | UTC-2 / GMT-2                            |
-| Source:      | AFU (Amt für Umwelt der Stadt Bern)      |
+|              |                                         |
+|--------------|-----------------------------------------|
+| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
+| Altitude:    | 554.5 a.s.l.                            |
+| Time:        | UTC-2 / GMT-2                           |
+| Source:      | AFU (Amt für Umwelt der Stadt Bern)     |
 
 : Table 2: Metadata for AFU (reference station)
 
-+----------------+-----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
-+----------------+-----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                            |
-+----------------+-----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2               |
-|                |                                         |
-|                | New Logger: UTC / GMT                   |
-+----------------+-----------------------------------------+
-| Logger Number: | 98                                      |
-+----------------+-----------------------------------------+
-| Code grafana   | 20d1b9040ad9                            |
-+----------------+-----------------------------------------+
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N   |
++-----------------+------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 98                                       |
++-----------------+------------------------------------------+
+| Code grafana    | 20d1b9040ad9                             |
++-----------------+------------------------------------------+
 
 : Table 3: Metadata for the 2m Logger in Zollikofen
 
-+----------------+-----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
-+----------------+-----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                            |
-+----------------+-----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2               |
-|                |                                         |
-|                | New Logger: UTC / GMT                   |
-+----------------+-----------------------------------------+
-| Logger Number: | 99                                      |
-+----------------+-----------------------------------------+
-| Code grafana   | 135a449d34a1                            |
-+----------------+-----------------------------------------+
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N   |
++-----------------+------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 99                                       |
++-----------------+------------------------------------------+
+| Code grafana    | 135a449d34a1                             |
++-----------------+------------------------------------------+
 
 : Table 4: Metadata for the 3m Logger in Zollikofen
 
-+----------------+------------------------------------------+
-| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
-+----------------+------------------------------------------+
-| Altitude:      | 554.5 a.s.l.                             |
-+----------------+------------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2                |
-|                |                                          |
-|                | New Logger: UTC / GMT                    |
-+----------------+------------------------------------------+
-| Logger Number: | 83                                       |
-+----------------+------------------------------------------+
-| Code grafana   | d6e2769def35                             |
-+----------------+------------------------------------------+
++-----------------+-------------------------------------------+
+| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N   |
++-----------------+-------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                              |
++-----------------+-------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                 |
+|                 |                                           |
+|                 | New Logger: UTC / GMT                     |
++-----------------+-------------------------------------------+
+| Logger Number:  | 83                                        |
++-----------------+-------------------------------------------+
+| Code grafana    | d6e2769def35                              |
++-----------------+-------------------------------------------+
 
 : Table 5: Metadata for the 2m Logger at AFU
 
@@ -231,7 +231,6 @@ ZOLL_test <- rsample::testing(split_zoll)
 my.sequence <-c(1,2,3,4,5, seq(100, to = 200, by = 10))
 parameter.extracter.knn.cv(my.sequence, ZOLL_train, ZOLL_test , 10)
 
-
 # We calculate a KNN model
 model.ZOLL.opt <- knn.cv.model(ZOLL_train, 170)
 
@@ -264,7 +263,7 @@ model.AFU.opt <- knn.cv.model(AFU_train, 17)
 model.AFU.lm <- lm.model(AFU_train)
 ```
 
-# Evaluation, spatial up-scaling and estimate performance 
+# Evaluation, spatial up-scaling and estimate performance
 
 ## Evaluation of AFU
 
@@ -287,7 +286,7 @@ be able to use the extended model later.
 ```{r model-evaluation-AFU,warning=FALSE, error=FALSE, message=FALSE }
 # simple KNN
 eval_model(model.AFU.opt, AFU_train_approach, AFU_test_approach, 
-           c("AFU: KNN (opt. k = 17)"), c("AFU: KNN (opt. k = 17)"))
+           c("AFU: KNN (k = 17)"), c("AFU: KNN (k = 17)"))
 
 # simple lm
 eval_model(model.AFU.lm, AFU_train_approach, AFU_test_approach, 
@@ -295,8 +294,8 @@ eval_model(model.AFU.lm, AFU_train_approach, AFU_test_approach,
 
 # expanded KNN
 eval_model(model.AFU.opt.approach, AFU_train_approach, AFU_test_approach, 
-           c("AFU: KNN-expanded (opt. k = 17)"), 
-           c("AFU: KNN-expanded (opt. k = 17)"))
+           c("AFU: KNN-expanded (k = 17)"), 
+           c("AFU: KNN-expanded (k = 17)"))
 
 # expanden lm
 eval_model(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach, 
@@ -308,8 +307,8 @@ eval_model(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach,
 ```{r upscaling-AFU, warning=FALSE, error=FALSE, message=FALSE}
 # expanded KNN
 eval_model(model.AFU.opt.approach, AFU_train_approach, ZOLL, 
-           c("Zoll: KNN-expanded (opt. k = 17)"), 
-           c("Zoll: KNN-expanded (opt. k = 17)"))
+           c("Zoll: KNN-expanded (k = 17)"), 
+           c("Zoll: KNN-expanded (k = 17)"))
 
 # expanden lm
 eval_model(model.AFU.lm.approach, AFU_train_approach, ZOLL, 
@@ -332,7 +331,7 @@ new_logger_AFU <- new_logger_AFU|>
          'humidity' = decodedXpayload_humidity)
 
 eval_model(model.AFU.opt, AFU_train_approach, new_logger_AFU, 
-           c("AFU: KNN (opt. k = 17)"), c("AFU: KNN (opt. k = 17)"))
+           c("AFU: KNN (k = 17)"), c("AFU: KNN (k = 17)"))
 
 eval_model(model.AFU.lm, AFU_train_approach, new_logger_AFU, 
            c("AFU: lm-model"), c("AFU: lm-model"))
@@ -360,7 +359,7 @@ be able to use the extended model later.
 ```{r evaluation-of-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
 # simple KNN
 eval_model(model.ZOLL.opt, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zoll: KNN (opt. k = 170)"), c("Zoll: KNN (opt. k = 170)"))
+           c("Zoll: KNN (k = 170)"), c("Zoll: KNN (k = 170)"))
 
 # simple lm
 eval_model(model.ZOLL.lm, ZOLL_train_approach, ZOLL_test_approach, 
@@ -368,7 +367,7 @@ eval_model(model.ZOLL.lm, ZOLL_train_approach, ZOLL_test_approach,
 
 # expanded KNN
 eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
+           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
 
 # expanded lm
 eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach, 
@@ -382,8 +381,8 @@ eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach,
 
 # expanded KNN
 eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, AFU, 
-           c("AFU: KNN-expanded (opt. k = 17)"), 
-           c("AFU: KNN-expanded (opt. k = 17)"))
+           c("AFU: KNN-expanded (k = 17)"), 
+           c("AFU: KNN-expanded (k = 17)"))
 
 # expanden lm
 eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, AFU, 
@@ -413,7 +412,7 @@ new_logger_zoll_2 <- new_logger_zoll_2|>
 
 # expanded KNN
 eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_2, 
-           c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
+           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
 
 # expanded lm
 eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_2, 
@@ -439,7 +438,7 @@ new_logger_zoll_3 <- new_logger_zoll_3|>
 
 # expanded KNN
 eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_3, 
-           c("Zoll: KNN-expanded (opt. k = 2)"), c("Zoll: KNN-expanded (opt. k = 2)"))
+           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
 
 # expanded lm
 eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_3, 
