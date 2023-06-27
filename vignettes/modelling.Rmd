@@ -123,7 +123,7 @@ ZOLL <- read.csv2("../data/data_REF_ZOLL.original.csv")
 AFU <- read_xlsx("../data/data_REF_AFU_new.xlsx")
 ```
 
-```{r file-preparation}
+```{r file-preparation, error=FALSE, warning=FALSE, message=FALSE}
 # We change format of time and date for reference station in Zollikofen
 ZOLL$time <- strptime(ZOLL$time, format="%Y%m%d%H%M")
 ZOLL$time <- as.POSIXct(ZOLL$time, tz = "ETC/GMT")
