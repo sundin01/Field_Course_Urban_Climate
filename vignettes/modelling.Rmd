@@ -31,7 +31,7 @@ Markella Bouchoriku
 ([markella.bouchoriku\@students.unibe.ch](mailto:markella.bouchoriku@students.unibe.ch){.email}
 )
 
-Reference: Zollikofen
+Reference: "modelling"
 
 # Introduction
 
@@ -54,51 +54,51 @@ station)
 
 : Table 2: Metadata for AFU (reference station)
 
-+-----------------+-------------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N    |
-+-----------------+-------------------------------------------+
-| Altitude:       | 552.9 a.s.l.                              |
-+-----------------+-------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                 |
-|                 |                                           |
-|                 | New Logger: UTC / GMT                     |
-+-----------------+-------------------------------------------+
-| Logger Number:  | 98                                        |
-+-----------------+-------------------------------------------+
-| Code grafana    | 20d1b9040ad9                              |
-+-----------------+-------------------------------------------+
++----------------+----------------------------------------+
+| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
++----------------+----------------------------------------+
+| Altitude:      | 552.9 a.s.l.                           |
++----------------+----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2              |
+|                |                                        |
+|                | New Logger: UTC / GMT                  |
++----------------+----------------------------------------+
+| Logger Number: | 98                                     |
++----------------+----------------------------------------+
+| Code grafana   | 20d1b9040ad9                           |
++----------------+----------------------------------------+
 
 : Table 3: Metadata for the 2m Logger in Zollikofen
 
-+-----------------+-------------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N    |
-+-----------------+-------------------------------------------+
-| Altitude:       | 552.9 a.s.l.                              |
-+-----------------+-------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                 |
-|                 |                                           |
-|                 | New Logger: UTC / GMT                     |
-+-----------------+-------------------------------------------+
-| Logger Number:  | 99                                        |
-+-----------------+-------------------------------------------+
-| Code grafana    | 135a449d34a1                              |
-+-----------------+-------------------------------------------+
++----------------+----------------------------------------+
+| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
++----------------+----------------------------------------+
+| Altitude:      | 552.9 a.s.l.                           |
++----------------+----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2              |
+|                |                                        |
+|                | New Logger: UTC / GMT                  |
++----------------+----------------------------------------+
+| Logger Number: | 99                                     |
++----------------+----------------------------------------+
+| Code grafana   | 135a449d34a1                           |
++----------------+----------------------------------------+
 
 : Table 4: Metadata for the 3m Logger in Zollikofen
 
-+-----------------+--------------------------------------------+
-| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N    |
-+-----------------+--------------------------------------------+
-| Altitude:       | 554.5 a.s.l.                               |
-+-----------------+--------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                  |
-|                 |                                            |
-|                 | New Logger: UTC / GMT                      |
-+-----------------+--------------------------------------------+
-| Logger Number:  | 83                                         |
-+-----------------+--------------------------------------------+
-| Code grafana    | d6e2769def35                               |
-+-----------------+--------------------------------------------+
++----------------+-----------------------------------------+
+| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
++----------------+-----------------------------------------+
+| Altitude:      | 554.5 a.s.l.                            |
++----------------+-----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2               |
+|                |                                         |
+|                | New Logger: UTC / GMT                   |
++----------------+-----------------------------------------+
+| Logger Number: | 83                                      |
++----------------+-----------------------------------------+
+| Code grafana   | d6e2769def35                            |
++----------------+-----------------------------------------+
 
 : Table 5: Metadata for the 2m Logger at AFU
 
@@ -167,6 +167,7 @@ source("../R/ml_functions.approach/lm.and.knn.model.approach.R")
 source("../R/ml_functions.approach/knn_cv_optimizer.approach.R")
 source("../R/ml_functions.approach/knn.cv.model.creater.approach.R")
 
+# For reproducibility (pseudo random choice)
 set.seed(123)  
 
 # Split 70 % to 30 % 
@@ -176,7 +177,7 @@ ZOLL_train_approach <- rsample::training(split_zoll_approach)
 ZOLL_test_approach <- rsample::testing(split_zoll_approach)
 
 # We optimaze the hyperparameter k --> k=170
-my.sequence <-c(1,2,3,4,5, seq(10, to = 50, by = 5))
+my.sequence <-c(1,2,3,4,5, seq(100, to = 200, by = 10))
 parameter.extracter.knn.cv.a(my.sequence, ZOLL_train_approach, ZOLL_test_approach , 10)
 
 
@@ -190,6 +191,7 @@ model.ZOLL.lm.approach <- lm.model.a(ZOLL_train_approach)
 ## General AFU
 
 ```{r calculate-AFU-model, warning=FALSE, error=FALSE, message=FALSE}
+# For reproducibility
 set.seed(123)  
 
 # Split 70 % to 30 % 
@@ -219,7 +221,7 @@ source("../R/ml_functions/lm.and.knn.model.R")
 source("../R/ml_functions/knn_cv_optimizer.R")
 source("../R/ml_functions/knn.cv.model.creater.R")
 
-# For reproducibility (pseudo-random)
+# For reproducibility (pseudo random choice)
 set.seed(123)  
 
 # Split 70 % to 30 % 
@@ -252,10 +254,8 @@ split_AFU <- rsample::initial_split(AFU, prop = 0.7)
 AFU_train <- rsample::training(split_AFU)
 AFU_test <- rsample::testing(split_AFU)
 
-
-my.sequence <-  c(1:25)
 # We optimaze the hyperparameter k --> k = 17
-parameter.extracter.knn.cv(my.sequence, AFU_train, AFU_test , 10)
+parameter.extracter.knn.cv(c(1:25), AFU_train, AFU_test , 10)
 
 # We calculate a KNN model
 model.AFU.opt <- knn.cv.model(AFU_train, 17)
@@ -303,7 +303,15 @@ eval_model(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach,
            c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
 ```
 
-## Spatial up-scaling with AFU
+### Spatial up-scaling with AFU
+
+Now, we try to predict Zollikofen with our AFU model. We see that our
+simple knn-model is superior RSQ but not for Bias (0.72 vs. 0.67 , -0.08
+vs. -0.02).
+
+If we predict Zollikofen with our expanded models we clearly see, that is
+would be the better approach than the simple one. KNN is also superior for
+RSQ but not for Bias (0.83 vs. 0.71 , -0.09 vs. 0.01).
 
 ```{r upscaling-AFU, warning=FALSE, error=FALSE, message=FALSE}
 # expanded KNN
@@ -315,6 +323,11 @@ eval_model(model.AFU.opt.approach, AFU_train_approach, ZOLL,
 eval_model(model.AFU.lm.approach, AFU_train_approach, ZOLL, 
            c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
 ```
+
+### Logger prediction
+
+Now we try to predict the logger at AFU with our AFU-models. For that, we
+read logger data first and make some mutation with date and time.
 
 ```{r read-new-logger}
 # We read data from the new logger in front of AFU (2m)
@@ -338,110 +351,82 @@ eval_model(model.AFU.lm, AFU_train_approach, new_logger_AFU,
            c("AFU: lm-model"), c("AFU: lm-model"))
 ```
 
-## Evaluation of Zollikofen
+Expand on all double measurements locations
 
-Here, we evaluate Zollikofen. We use our simple model (model.ZOLL.opt)
-which contains only the target (temperature) and a predictor (humidity). We
-compare our knn-model with the lm-model. We easily see that the knn
-performce better than lm-model (RSQ: 0.77 vs. 0.74, RMSE: 2.54 vs. 2.7).
+```{r}
+#
+list_of_files <- list.files("../data/data_logger_new/")|>
+  as.data.frame('Name' = list_of_files)
+list_of_files
 
-If we use our expanded model (model.ZOLL.opt.appraoch), which contains the
-target (temperature) and the predictors (humidity, insolation, windspeed
-and winddirection), the performance increase massively (RSQ: 0.86 vs. 0.78,
-RMSE: 1.95 vs. 2.46). We see that especially the error is thereby lowered
-massively and the RSQ increase.
+#
+df_old_loggers <- read_xlsx("../data/data_logger_old.xlsx")
 
-Now, we know the expanded KNN model is superior to all other models. Thus,
-it would be preferable to use this one. Unfortunately, the new loggers
-measure only temperature and humidity. We must therefore work with the
-simple model. However, we recommend to extend the measurements in order to
-be able to use the extended model later.
+df_metadata <- read_xlsx("../data/metadata_network_2023.xlsx")
 
-```{r evaluation-of-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
-# simple KNN
-eval_model(model.ZOLL.opt, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zoll: KNN (k = 170)"), c("Zoll: KNN (k = 170)"))
+df_metadata <- df_metadata|>
+  filter(Doppel_Messnetz_23 == 'ja' & `Code grafana` != 'nocht nicht installiert')|>
+  select(Log_NR, `Code grafana`, NORD_CHTOPO, OST_CHTOPO,HüM)
 
-# simple lm
-eval_model(model.ZOLL.lm, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zoll: lm-model"), c("Zoll: lm-model"))
 
-# expanded KNN
-eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
+data_files <- list.files("../data/data_logger_new/")
 
-# expanded lm
-eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach, 
-           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
+for(i in 1:length(data_files)) {                             
+  assign(paste0("data", i),                                   
+         read.csv2(paste0("../data/data_logger_new/", data_files[i])))
+}
+
+dynamic_file_reader <- function(database = df_metadata){
+  codes <- c(database|>
+    select(`Code grafana`))
+  file.names = NULL
+  for (i in testi) {
+    file.names <- c(file.names, paste0('../data/data_logger_new/',i, '.csv'))
+
+    return(file.names)
+    }
+}
+
+h <- dynamic_file_reader()
+h
+
+r <- read_csv("../data/data_logger_new/02f54d63d5c4.csv")
+     char <- as.character(i)
+    file <- paste0('file', '_char') <- read_csv(paste0('../data/data_logger_new/', 'file.names'))
+converter <- function(database = df_old_loggers){
+  
+  new_number <- NULL
+  log_vec <- NULL
+  code
+  nbr_logger <- df_old_loggers|>
+  select(-c('Sommerzeit', 'Log_32', 'Log_39'))|>
+  colnames()
+for (i in nbr_logger) {
+  new_character <- gsub("Log_", "", i)
+  new_number <- as.numeric(new_character)
+  log_vec <- c(log_vec, new_number)
+}
+  df_metadata|>
+    filter()
+  return(log_vec)
+}
+
+file_reader <- function(){
+  
+}
+x <- converter()
+
+x
+
+which(df_metadata$Log_NR == x)
+
+y <- df_metadata[x, ]
+
+
+  select('Log_NR', 'Code grafana') |>
+    filter(Log_NR == x)
+
+
 ```
 
-## Spatial upscaling with Zollikofen
-
-```{r upsacling-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
-
-
-# expanded KNN
-eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, AFU, 
-           c("AFU: KNN-expanded (k = 17)"), 
-           c("AFU: KNN-expanded (k = 17)"))
-
-# expanden lm
-eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, AFU, 
-           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
-
-
-
-```
-
-### Zollikofen 2m Logger
-
-```{r read-new-logger-2m}
-
-# We read data from the new logger in Zollikofen (2m)
-new_logger_zoll_2 <- read.csv("../data/data_logger_new/20d1b9040ad9.csv") 
-
-# We change format of time and date for the new logger in Zollikofen (2m)
-new_logger_zoll_2$time <- gsub('[TZ]',' ', new_logger_zoll_2$time)
-new_logger_zoll_2$time <- strptime(new_logger_zoll_2$time, format="%Y-%m-%d %H:%M")
-new_logger_zoll_2$time <- as.POSIXct(new_logger_zoll_2$time, tz = "Etc/GMT")
-attr(new_logger_zoll_2$time, "tzone")
-
-new_logger_zoll_2 <- new_logger_zoll_2|>
-  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
-  rename('temperature' = decodedXpayload_temperature,
-         'humidity' = decodedXpayload_humidity)
-
-# expanded KNN
-eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_2, 
-           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
-
-# expanded lm
-eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_2, 
-           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
-```
-
-### Zollikofen 3m Logger
-
-```{r read-new-logger-3m}
-# We read data from the new logger in Zollikofen (3m)
-new_logger_zoll_3 <- read.csv("../data/data_logger_new/135a449d34a1.csv")
-
-# We change format of time and date for the new logger in Zollikofen (2m)
-new_logger_zoll_3$time <- gsub('[TZ]',' ', new_logger_zoll_3$time)
-new_logger_zoll_3$time <- strptime(new_logger_zoll_3$time, format="%Y-%m-%d %H:%M")
-new_logger_zoll_3$time <- as.POSIXct(new_logger_zoll_3$time, tz = "Etc/GMT")
-attr(new_logger_zoll_3$time, "tzone")
-
-new_logger_zoll_3 <- new_logger_zoll_3|>
-  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
-  rename('temperature' = decodedXpayload_temperature,
-         'humidity' = decodedXpayload_humidity)
-
-# expanded KNN
-eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_3, 
-           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
-
-# expanded lm
-eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_3, 
-           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
-```
+as
