@@ -29,7 +29,7 @@ Sarah Ogi (sarah.ogi\@students.unibe.ch)
 
 Markella Bouchoriku (markella.bouchoriku\@students.unibe.ch )
 
-Reference: Amt für Umwelt (AFU)
+Reference: "Amt für Umwelt (AFU)"
 
 # Introduction
 
@@ -43,19 +43,19 @@ Reference: Amt für Umwelt (AFU)
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+-----------------+--------------------------------------------+
-| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N    |
-+-----------------+--------------------------------------------+
-| Altitude:       | 554.5 a.s.l.                               |
-+-----------------+--------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                  |
-|                 |                                            |
-|                 | New Logger: UTC / GMT                      |
-+-----------------+--------------------------------------------+
-| Logger Number:  | 83                                         |
-+-----------------+--------------------------------------------+
-| Code grafana    | d6e2769def35                               |
-+-----------------+--------------------------------------------+
++----------------+-----------------------------------------+
+| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
++----------------+-----------------------------------------+
+| Altitude:      | 554.5 a.s.l.                            |
++----------------+-----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2               |
+|                |                                         |
+|                | New Logger: UTC / GMT                   |
++----------------+-----------------------------------------+
+| Logger Number: | 83                                      |
++----------------+-----------------------------------------+
+| Code grafana   | d6e2769def35                            |
++----------------+-----------------------------------------+
 
 : Table 2: Metadata for the 2m Logger at AFU
 
@@ -251,10 +251,10 @@ AFU_combined|>
            `Anomaly_new_log_old_log` > 3 )
 
 # We filter the dataset by rows and exclude some data
-# Row numbers 3316 - 3489 (7.6.23, 7:00 - 8.6.23, 12:00)
-# Row numbers 3513 - 3525 (8.6.23, 16:00 - 8.6.23, 18:00)
+# Row numbers 3316 - 3525 (7.6.23, 7:00 - 8.6.23, 18:00)
+
 AFU_combined|>
-  filter(! Row %in% c(3316:3489, 3513:3525))|>
+  filter(! Row %in% c(3316 : 3525))|>
     mutate(aggregate_hourly = lubridate::round_date(time, "2 hours"))|>
   group_by(aggregate_hourly)|>
   mutate(daily = lubridate::day(time))|>
@@ -273,7 +273,7 @@ AFU_combined|>
 
 # We redefine the data and exclude the rows where the measuring station was broken.   
 AFU_combined <- AFU_combined|>
-  filter(! Row %in% c(3316:3489, 3513:3525))|>
+  filter(! Row %in% c(3316 : 3525))|>
   drop_na()
 
 
@@ -380,6 +380,8 @@ boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE
 
 Night-time
 
+add lines (gap)
+
 ```{r boxplot_night}
 # Boxplot new logger - reference station at AFU (nighttime)
 boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE, day = FALSE)
@@ -411,7 +413,8 @@ Day-time
 
 ```{r density_day}
 # Densityplot new logger - reference station at AFU (daytime)
-densityplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
+densityplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE, title = c("Hallo"), 
+                    subtitle = c("23.3.4567"), xlab = c("x-Achse"), ylab = c("y-Achse"))
 
 # Densityplot old logger - reference station at AFU (daytime)
 densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE)
