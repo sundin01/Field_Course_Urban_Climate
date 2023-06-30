@@ -1,0 +1,414 @@
+---
+title: "Modelling Zollikofen"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+editor_options:
+  markdown:
+    wrap: 75
+---
+
+Course: Field Course Micrometeorology and Urban Climate at the University
+of Bern (Institute of Geography)
+
+Supervisor: Prof. Dr. Stefan Brönnimann
+
+Adviser: Dr. Moritz Gubler
+
+[Do you have questions about the workflow? Contact the
+Authors:]{.underline}
+
+Bigler Patrick
+([patrick.bigler1\@students.unibe.ch](mailto:patrick.bigler1@students.unibe.ch){.email})
+
+Sarah Ogi (sarah.ogi\@students.unibe.ch)
+
+Markella Bouchoriku (markella.bouchoriku\@students.unibe.ch )
+
+Reference: "Spatial Upscaling"
+
+```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
+# install and activate all packages we need
+source("../Field_Course_Urban_Climate/R/general/packages.R")
+
+# We set preferences
+conflicts_prefer(ggplot2::annotate)
+conflicts_prefer(dplyr::select)
+conflicts_prefer(dplyr::mutate)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dplyr::rename)
+conflicts_prefer(Metrics::rmse)
+conflicts_prefer(Metrics::mae)
+conflicts_prefer(lubridate::stamp)
+conflicts_prefer(lubridate::hour)
+conflicts_prefer(recipes::fixed)
+```
+
+```{r read_the_data, warning=FALSE, error=FALSE, message=FALSE}
+# We read the reference data from Zollikofen
+ZOLL <- read.csv2("../Field_Course_Urban_Climate/data/data_REF_ZOLL.original.csv")
+
+# We change format of time and date for reference station in Zollikofen
+ZOLL$time <- strptime(ZOLL$time, format="%Y%m%d%H%M")
+ZOLL$time <- as.POSIXct(ZOLL$time, tz = "ETC/GMT")
+attr(ZOLL$time, "tzone")
+
+ZOLL <- ZOLL|>
+  mutate('windspeed' = as.numeric(as.character(unlist(ZOLL[,'fu3010z0']))),
+         'winddirection' = as.numeric(as.character(unlist(ZOLL[,'dkl010z0']))),
+         'precipitation' = as.numeric(as.character(unlist(ZOLL[,'rre150z0']))),
+         'humidity' = as.numeric(as.character(unlist(ZOLL[,'ure200s0']))),
+         'insolation' = as.numeric(as.character(unlist(ZOLL[,'gre000z0']))),
+         'temperature' = as.numeric(as.character(unlist(ZOLL[,'tre200s0']))))|>
+  select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
+```
+
+```{r split_the_data, warning=FALSE, error=FALSE, message=FALSE }
+# We load our functions
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.evaluation.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/lm.and.knn.model.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn_cv_optimizer.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.cv.model.creater.R")
+
+# For reproducibility (pseudo random choice)
+set.seed(123)  
+
+# Split 70 % to 30 % 
+split_zoll <- rsample::initial_split(ZOLL, prop = 0.7)
+# We create a training set and a test set
+ZOLL_train <- rsample::training(split_zoll)
+ZOLL_test <- rsample::testing(split_zoll)
+
+# We optimaze the hyperparameter k --> k=170
+my.sequence <-c(1,2,3,4,5, seq(100, to = 200, by = 10))
+parameter.extracter.knn.cv(my.sequence, ZOLL_train, ZOLL_test , 10)
+
+# We calculate a KNN model
+model.ZOLL.opt <- knn.cv.model(ZOLL_train, 170)
+
+# We calculate a lm-model (to comapre with)
+model.ZOLL.lm <- lm.model(ZOLL_train)
+
+# We load our functions
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.evaluation.approach.R")
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/lm.and.knn.model.approach.R")
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn_cv_optimizer.approach.R")
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.cv.model.creater.approach.R")
+
+# For reproducibility (pseudo random choice)
+set.seed(123)  
+
+# Split 70 % to 30 % 
+split_zoll_approach <- rsample::initial_split(ZOLL, prop = 0.7)
+# We create a training set and a test set
+ZOLL_train_approach <- rsample::training(split_zoll_approach)
+ZOLL_test_approach <- rsample::testing(split_zoll_approach)
+
+
+# We optimaze the hyperparameter k --> k = 2
+parameter.extracter.knn.cv.a(c(1:10),
+                             ZOLL_train_approach, ZOLL_test_approach , 10)
+
+
+# We calculate a KNN model
+model.ZOLL.opt.appraoch <- knn.cv.model.a(ZOLL_train_approach, 2)
+
+# We calculate a lm-model (to comapre with)
+model.ZOLL.lm.approach <- lm.model.a(ZOLL_train_approach)
+```
+
+## Evaluation of Zollikofen
+
+Here, we evaluate Zollikofen. We use our simple model (model.ZOLL.opt)
+which contains only the target (temperature) and a predictor (humidity). We
+compare our knn-model with the lm-model. We easily see that the knn
+performce better than lm-model (RSQ: 0.77 vs. 0.74, RMSE: 2.54 vs. 2.7).
+
+If we use our expanded model (model.ZOLL.opt.appraoch), which contains the
+target (temperature) and the predictors (humidity, insolation, windspeed
+and winddirection), the performance increase massively (RSQ: 0.86 vs. 0.78,
+RMSE: 1.95 vs. 2.46). We see that especially the error is thereby lowered
+massively and the RSQ increase.
+
+Now, we know the expanded KNN model is superior to all other models. Thus,
+it would be preferable to use this one. Unfortunately, the new loggers
+measure only temperature and humidity. We must therefore work with the
+simple model. However, we recommend to extend the measurements in order to
+be able to use the extended model later.
+
+```{r evaluation-of-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
+# simple KNN
+eval_model(model.ZOLL.opt, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: KNN (k = 170)"), c("Zoll: KNN (k = 170)"))
+
+# simple lm
+eval_model(model.ZOLL.lm, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: lm-model"), c("Zoll: lm-model"))
+
+# expanded KNN
+eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
+
+# expanded lm
+eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach, 
+           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
+```
+
+### Spatial up-scaling with Zollikofen
+
+We use our siimple models
+
+```{r}
+# simple KNN
+eval_model(model.ZOLL.opt, ZOLL_train_approach, AFU_test_approach, 
+           c("AFU: KNN-expanded (k = 17)"), 
+           c("AFU: KNN-expanded (k = 17)"))
+
+# simple lm
+eval_model(model.ZOLL.lm, ZOLL_train_approach, AFU_test_approach, 
+           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
+```
+
+We use our expanded model
+
+```{r upsacling-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
+# expanded KNN
+eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, AFU_test_approach, 
+           c("AFU: KNN-expanded (k = 17)"), 
+           c("AFU: KNN-expanded (k = 17)"))
+
+# expanden lm
+eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, AFU_test_approach, 
+           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
+```
+
+### Zollikofen 2m Logger
+
+We evaluate the 2m logger in Zollikofen
+
+```{r read-new-logger-2m, warning=FALSE, error=FALSE, message=FALSE}
+
+# We read data from the new logger in Zollikofen (2m)
+new_logger_zoll_2 <- read.csv("../data/data_logger_new/20d1b9040ad9.csv") 
+
+# We change format of time and date for the new logger in Zollikofen (2m)
+new_logger_zoll_2$time <- gsub('[TZ]',' ', new_logger_zoll_2$time)
+new_logger_zoll_2$time <- strptime(new_logger_zoll_2$time, format="%Y-%m-%d %H:%M")
+new_logger_zoll_2$time <- as.POSIXct(new_logger_zoll_2$time, tz = "Etc/GMT")
+attr(new_logger_zoll_2$time, "tzone")
+
+new_logger_zoll_2 <- new_logger_zoll_2|>
+  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' = decodedXpayload_humidity)
+
+# expanded KNN
+eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_2, 
+           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
+
+# expanded lm
+eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_2, 
+           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
+```
+
+### Zollikofen 3m Logger
+
+And we evaluate the 3m logger in Zollikofen
+
+```{r read-new-logger-3m, warning=FALSE, error=FALSE, message=FALSE}
+# We read data from the new logger in Zollikofen (3m)
+new_logger_zoll_3 <- read.csv("../data/data_logger_new/135a449d34a1.csv")
+
+# We change format of time and date for the new logger in Zollikofen (2m)
+new_logger_zoll_3$time <- gsub('[TZ]',' ', new_logger_zoll_3$time)
+new_logger_zoll_3$time <- strptime(new_logger_zoll_3$time, format="%Y-%m-%d %H:%M")
+new_logger_zoll_3$time <- as.POSIXct(new_logger_zoll_3$time, tz = "Etc/GMT")
+attr(new_logger_zoll_3$time, "tzone")
+
+new_logger_zoll_3 <- new_logger_zoll_3|>
+  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' = decodedXpayload_humidity)
+
+# expanded KNN
+eval_model(model.ZOLL.opt, ZOLL_train, new_logger_zoll_3, 
+           c("Zoll: KNN-expanded (k = 2)"), c("Zoll: KNN-expanded (k = 2)"))
+
+# expanded lm
+eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_3, 
+           c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
+```
+
+## Read multiple csv-files at once
+
+We read multiple csv-files at once
+
+```{r read-multiple-csv-files, warning=FALSE, error=FALSE, message=FALSE}
+# we read all the file names
+list_of_files <- list.files(path = '../Field_Course_Urban_Climate/data/data_logger_new/',
+                            recursive = TRUE,
+                            pattern = '\\.csv$',
+                            full.names = TRUE)
+
+# We save them in a data frame
+df_new_loggers <- readr::read_csv(list_of_files, id = "file_name")
+
+
+# We need only double measurements --> create a filter
+df_metadata <- read_xlsx("../Field_Course_Urban_Climate/data/metadata_network_2023.xlsx")
+
+df_metadata <- df_metadata|>
+  # We want only double measurements, we need the code as well
+  filter(Doppel_Messnetz_23 == 'ja' & `Code grafana` != 'nocht nicht installiert')|>
+  select(Log_NR, `Code grafana`, NORD_CHTOPO, OST_CHTOPO,HüM)
+
+# we extract the identification code of the loggers
+logger_code <- df_metadata$`Code grafana`
+
+# because there are errors by reading the files, we use only the first four characters
+logger_code <- str_sub(logger_code , end = -9)
+
+# We create our own filter (with logical "or")
+own.filter <- logger_code|>
+  paste(collapse = "|")
+
+# and we have a data frame which contains only locations with a double measurement
+# Now we can use group_by or a filter to analize all locations at once
+df_new_loggers <- df_new_loggers |>
+  filter(str_detect(name, own.filter))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' =decodedXpayload_humidity)|>
+  select(c('time', 'name', 'temperature', 'humidity'))
+```
+
+```{r control_plot, warning=FALSE, error=FALSE, message=FALSE}
+# We create a control-plot to check wheter we have 22 locations
+df_new_loggers|>
+  group_by(name)|>
+    ggplot(aes(x = time, y = temperature, color = name ))+
+  geom_line()+
+  theme_light()
+```
+
+## Modelling
+
+### Regression
+
+```{r regression, warning=FALSE, error=FALSE, message=FALSE}
+# regression time vs. temperatur (which is probably nonsense)
+df_new_loggers|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = humidity, y =temperature))+
+  geom_point()+
+  geom_smooth(formula = y~x, method = 'lm')+
+  stat_poly_eq(use_label('R2'))+
+  facet_wrap(~name)
+
+# regression humidity vs. temperature
+df_new_loggers|>
+  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
+  group_by(aggregate_hourly)|>
+  drop_na()|>
+  ggplot(aes(x = time, y =temperature))+
+  geom_point()+
+  geom_smooth(formula = y~x, method = 'lm')+
+  stat_poly_eq(use_label('R2'))+
+  facet_wrap(~name)
+```
+
+We have to know whether temperature and humidity correlate. We define a RSQ
+\>0.7 as a threshold. After that we apply our models on them.
+
+```{r}
+# We extract the names of the differten groups in our database
+filter <- dplyr::pull(df_new_loggers|>
+  group_keys(name), name)
+
+# we write a function to calculate 
+regression_calculater <- function(filter = c(filter)){
+  RSQ <- NULL
+  for (i in filter) {
+    model <- lm(temperature ~ humidity, data = subset(df_new_loggers, name == i))
+    RSQ <- c(RSQ, round(summary(model)$r.squared, digits = 3))
+    }
+  my_tibble <- data_frame('Location' = filter,
+                      'RSQ' = RSQ)
+  return(my_tibble)
+}
+
+RSQ_new_logger <- regression_calculater(filter)
+```
+
+```{r}
+# We change format of time and date for reference station in Zollikofen
+df_new_loggers$time <- strptime(df_new_loggers$time , format = "%Y-%m-%d %H:%M")
+df_new_loggers$time <- as.POSIXct(df_new_loggers$time, tz = "ETC/GMT-2")
+attr(df_new_loggers$time, "tzone")
+
+df_new_loggers <- df_new_loggers|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))|>
+  rename(temp = temperature,
+         hum = humidity)
+
+test.df <- inner_join(ZOLL, df_new_loggers, by = 'time')
+
+# filter to control for-loop
+filter <- dplyr::pull(df_new_loggers|>
+  group_keys(name), name)
+
+# define some variables
+RMSE <- NULL
+MAE <- NULL
+MAE_model <- NULL
+RSQ <- NULL
+BIAS <- NULL
+MAE_model <- NULL
+RMSE_model <- NULL
+BIAS_model <- NULL
+# create a for loop
+for (i in filter){
+  # filter after logger code
+  df_temporary <- subset(df_new_loggers, name == i)
+  # create a temporare data frame
+  df <- inner_join(ZOLL, df_temporary, by = 'time')
+  
+  # create a lm model
+  model <- lm(temp ~ hum, data = df)
+  # calculate model-metric
+  RSQ <- c(RSQ, round(summary(model)$r.squared, digits = 3))
+  MAE_model <- c(MAE_model, round(Metrics::mae(df$temp, predict(model)), digits = 3))
+  RMSE_model <- c(RMSE_model, round(Metrics::rmse(df$temp, predict(model)), digits = 3))
+  # We calculate the model bias as a control function. per definition, it should be always 0
+  BIAS_model <- c(BIAS_model, round((sum(df$temp - predict(model))/
+                   length(df$temp)), digits = 3))
+  
+  # calculate RMSE, MAE and BIAS without any model
+  RMSE <- c(RMSE, round(Metrics::rmse(df$temperature, df$temp), digits = 3))
+  MAE <- c(MAE, round(Metrics::mae(df$temperature, df$temp), digits = 3))
+  BIAS <- c(BIAS, round((sum(df$temp - df$temperature)/
+                   length(df$temp)), digits = 3))
+}
+
+logger_number <- pull(df_metadata|>
+                        dplyr::arrange(`Code grafana`)|>
+                        select(Log_NR)|>
+                        filter(Log_NR != 13 & Log_NR != 102 ))
+  
+
+overview <- tibble(
+  'Logger_number' = logger_number,
+  'Logger_code' = filter,
+  'RMSE' = RMSE,
+  'MAE' = MAE,
+  'BIAS' = BIAS,
+  'MAE_Model' = MAE_model,
+  'RMSE_Model' = RMSE_model,
+  'BIAS_Model' = BIAS_model,
+  'RSQ_Model' = RSQ)
+```
