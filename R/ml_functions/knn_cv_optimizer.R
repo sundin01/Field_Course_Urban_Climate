@@ -28,7 +28,7 @@ extract.mae <- function(mod, df){
 }
 
 parameter.extracter.knn.cv <- function(own.sequence, df.1, df.2, number.of.validation){
-  source("../R/ml_functions/knn.cv.model.creater.R")
+  source("../Field_Course_Urban_Climate/R/ml_functions/knn.cv.model.creater.R")
   add.rsq.1 <- NULL
   add.rsq.2 <- NULL
   add.mae.1 <- NULL

@@ -28,7 +28,7 @@ extract.mae.a <- function(mod, df){
 }
 
 parameter.extracter.knn.cv.a <- function(own.sequence, df.1, df.2, number.of.validation){
-  source("../R/ml_functions.approach/knn.cv.model.creater.approach.R")
+  source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.cv.model.creater.approach.R")
   add.rsq.1 <- NULL
   add.rsq.2 <- NULL
   add.mae.1 <- NULL
@@ -71,16 +71,8 @@ parameter.extracter.knn.cv.a <- function(own.sequence, df.1, df.2, number.of.val
                                      color = "Optimal K"), size = 4)+
     labs(x = "# k", y = "RSQ / MAE",
          title = "Overview of the development of RSQ and MAE",
-         subtitle = paste("by using KNN-Algorithm,"," Method: cv with n-fold = ",number.of.validation),
-         caption = "AGDS Report Exercise re_ml_02 (Chapter 10)")+
+         subtitle = paste("by using KNN-Algorithm,"," Method: cv with n-fold = ",number.of.validation))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
-    theme_bw()+
-    theme(panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)) +
-    theme( legend.background = element_rect( fill = "lightblue",
-                                             size = 0.5, linetype = "solid", colour = "black")) +
-    # add an individual panel boarder around the whole graph
-    theme(plot.margin = margin(0.3, 0.3, 0.3, 0.3, "cm"),
-          panel.background = element_rect(fill = "white"),
-          plot.background = element_rect(fill = "grey90",colour = "black", linewidth = 1))
+    theme_light()
   return(plot_1)
 }
