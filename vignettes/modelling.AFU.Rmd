@@ -1,0 +1,370 @@
+---
+title: "Modelling AFU"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+editor_options:
+  markdown:
+    wrap: 75
+---
+
+Course: Field Course Micrometeorology and Urban Climate at the University
+of Bern (Institute of Geography)
+
+Supervisor: Prof. Dr. Stefan Brönnimann
+
+Adviser: Dr. Moritz Gubler
+
+Do you have questions about the workflow? Contact the Authors:
+
+Bigler Patrick
+([patrick.bigler1\@students.unibe.ch](mailto:patrick.bigler1@students.unibe.ch){.email})
+
+Sarah Ogi
+([sarah.ogi\@students.unibe.ch](mailto:sarah.ogi@students.unibe.ch){.email})
+
+Markella Bouchoriku
+([markella.bouchoriku\@students.unibe.ch](mailto:markella.bouchoriku@students.unibe.ch){.email}
+)
+
+Reference: "modelling"
+
+# Introduction
+
+|              |                   |
+|--------------|-------------------|
+| Coordinates: | 7°28' E, 46°59' N |
+| Altitude:    | 552 a.s.l.        |
+| Time:        | UTC / GMT         |
+| Source:      | Meteo Schweiz     |
+
+: Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
+station)
+
+|              |                                         |
+|--------------|-----------------------------------------|
+| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
+| Altitude:    | 554.5 a.s.l.                            |
+| Time:        | UTC-2 / GMT-2                           |
+| Source:      | AFU (Amt für Umwelt der Stadt Bern)     |
+
+: Table 2: Metadata for AFU (reference station)
+
++-----------------+-----------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++-----------------+-----------------------------------------+
+| Altitude:       | 552.9 a.s.l.                            |
++-----------------+-----------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2               |
+|                 |                                         |
+|                 | New Logger: UTC / GMT                   |
++-----------------+-----------------------------------------+
+| Logger Number:  | 98                                      |
++-----------------+-----------------------------------------+
+| Code grafana    | 20d1b9040ad9                            |
++-----------------+-----------------------------------------+
+
+: Table 3: Metadata for the 2m Logger in Zollikofen
+
++-----------------+-----------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++-----------------+-----------------------------------------+
+| Altitude:       | 552.9 a.s.l.                            |
++-----------------+-----------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2               |
+|                 |                                         |
+|                 | New Logger: UTC / GMT                   |
++-----------------+-----------------------------------------+
+| Logger Number:  | 99                                      |
++-----------------+-----------------------------------------+
+| Code grafana    | 135a449d34a1                            |
++-----------------+-----------------------------------------+
+
+: Table 4: Metadata for the 3m Logger in Zollikofen
+
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
++-----------------+------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 83                                       |
++-----------------+------------------------------------------+
+| Code grafana    | d6e2769def35                             |
++-----------------+------------------------------------------+
+
+: Table 5: Metadata for the 2m Logger at AFU
+
+# Preparation
+
+```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
+# install and activate all packages we need
+source("../Field_Course_Urban_Climate/R/general/packages.R")
+
+# We set preferences
+conflicts_prefer(ggplot2::annotate)
+conflicts_prefer(dplyr::select)
+conflicts_prefer(dplyr::mutate)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dplyr::rename)
+```
+
+```{r read_the_data, warning=FALSE, error=FALSE, message=FALSE}
+# We read the reference data from AFU
+AFU <- read_xlsx("../Field_Course_Urban_Climate/data/data_REF_AFU_new.xlsx")
+```
+
+```{r file-preparation, error=FALSE, warning=FALSE, message=FALSE}
+# We change format of time and date for reference station in front of AFU
+AFU$Zeit <- format(AFU$Zeit, format = "%H:%M")
+AFU$Datum <- strptime(paste(AFU$Datum,AFU$Zeit,sep = " "), format="%Y-%m-%d %H:%M") 
+AFU$Datum <- as.POSIXct(AFU$Datum, tz = "Etc/GMT-2")
+attr(AFU$Datum, "tzone")
+
+AFU <- AFU|>
+  rename('time' =  Datum,
+         'temperature' = Temp,
+         'windspeed' = WG,
+         'winddirection' = WR...5,
+         'insolation' = GS,
+         'pressure' = Luftdruck,
+         'humidity' = Feuchte)|>
+  select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
+```
+
+# Maschine Learning (KNN-Algorithm)
+
+## AFU Expanded
+
+```{r calculate-AFU-model, warning=FALSE, error=FALSE, message=FALSE}
+# We load our functions for simple model
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.evaluation.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/lm.and.knn.model.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn_cv_optimizer.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.cv.model.creater.R")
+
+# We load our functions for expanded model
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.evaluation.approach.R")
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/lm.and.knn.model.approach.R")
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn_cv_optimizer.approach.R")
+source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.cv.model.creater.approach.R")
+# For reproducibility
+set.seed(123)  
+
+# Split 70 % to 30 % 
+split_AFU_approach <- rsample::initial_split(AFU, prop = 0.7)
+# We create a training set and a test set
+AFU_train_approach <- rsample::training(split_AFU_approach)
+AFU_test_approach <- rsample::testing(split_AFU_approach)
+
+# We optimaze the hyperparameter k --> k = 6
+my.sequence <- c(1 : 25)
+parameter.extracter.knn.cv.a(my.sequence, AFU_train_approach, AFU_test_approach , 10)
+
+
+# We calculate a KNN model
+model.AFU.opt.approach <- knn.cv.model.a(AFU_train_approach, 6)
+
+# We calculate a lm-model (to comapre with)
+model.AFU.lm.approach <- lm.model.a(AFU_train_approach)
+```
+
+## AFU Simple
+
+We do the same for AFU...
+
+```{r warning=FALSE, error=FALSE, message=FALSE }
+# For reproducibility (pseudo-random)
+set.seed(123)  
+# Split 70 % to 30 % 
+split_AFU <- rsample::initial_split(AFU, prop = 0.7)
+# We create a training set and a test set
+AFU_train <- rsample::training(split_AFU)
+AFU_test <- rsample::testing(split_AFU)
+
+# We optimaze the hyperparameter k --> k = 17
+parameter.extracter.knn.cv(c(1:25), AFU_train, AFU_test , 10)
+
+# We calculate a KNN model
+model.AFU.opt <- knn.cv.model(AFU_train, 17)
+
+# We calculate a lm-model (to comapre with)
+model.AFU.lm <- lm.model(AFU_train)
+```
+
+# Evaluation, spatial up-scaling and estimate performance
+
+## Evaluation of AFU
+
+First, we evaluate AFU. We use our simple model (model.AFU.opt) which
+contains only the target (temperature) and a predictor (humidity). We
+compare our knn-model with the lm-model. We easily see that the knn
+performce better than lm-model (RSQ: 0.72 vs. 0.67, RMSE: 2.71 vs. 2.95).
+
+If we use our expanded model (model.AFU.opt.appraoch), which contains the
+target (temperature) and the predictors (humidity, insolation, windspeed
+and winddirection), the performance increase massively (RSQ: 0.83 vs. 0.71,
+RMSE: 2.01 vs. 2.74). We see that especially the error is thereby lowered.
+
+Now, we know the expanded KNN model is superior to all other models. Thus,
+it would be preferable to use this one. Unfortunately, the new loggers
+measure only temperature and humidity. We must therefore work with the
+simple model. However, we recommend to extend the measurements in order to
+be able to use the extended model later.
+
+```{r model-evaluation-AFU,warning=FALSE, error=FALSE, message=FALSE }
+# simple KNN
+eval_model(model.AFU.opt, AFU_train, AFU_test, 
+           c("AFU: KNN (k = 17)"), c("AFU: KNN (k = 17)"))
+
+# simple lm
+eval_model(model.AFU.lm, AFU_train, AFU_test, 
+           c("AFU: lm-model"), c("AFU: lm-model"))
+
+# expanded KNN
+eval_model(model.AFU.opt.approach, AFU_train_approach, AFU_test_approach, 
+           c("AFU: KNN-expanded (k = 6)"), 
+           c("AFU: KNN-expanded (k = 6)"))
+
+# expanden lm
+eval_model(model.AFU.lm.approach, AFU_train_approach, AFU_test_approach, 
+           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
+```
+
+## Logger prediction
+
+Now we try to predict the logger at AFU with our AFU-models. For that, we
+read logger data first and make some mutation with date and time.
+
+```{r read-new-logger}
+# We read data from the new logger in front of AFU (2m)
+new_logger_AFU <- read.csv("../Field_Course_Urban_Climate/data/data_logger_new/d6e2769def35.csv")
+
+# We change format of time and date for the new logger in front of AFU
+new_logger_AFU$time <- gsub('[TZ]',' ', new_logger_AFU$time)
+new_logger_AFU$time <- strptime(new_logger_AFU$time, format = "%Y-%m-%d %H:%M")
+new_logger_AFU$time <- as.POSIXct(new_logger_AFU$time, tz = "Etc/GMT")
+attr(new_logger_AFU$time, "tzone")
+# We round the time to the next 10 minute and rename a column
+new_logger_AFU <- new_logger_AFU|>
+  mutate('time' = lubridate::round_date(time,"10 minutes"))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' = decodedXpayload_humidity)
+
+eval_model(model.AFU.opt, AFU_train, new_logger_AFU, 
+           c("AFU: KNN (k = 17)"), c("AFU: KNN (k = 17)"))
+
+eval_model(model.AFU.lm, AFU_train, new_logger_AFU, 
+           c("AFU: lm-model"), c("AFU: lm-model"))
+```
+
+Expand on all double measurements locations
+
+```{r}
+# we read all the file names
+list_of_files <- list.files(path = '../Field_Course_Urban_Climate/data/data_logger_new/',
+                            recursive = TRUE,
+                            pattern = '\\.csv$',
+                            full.names = TRUE)
+
+# We save them in a data frame
+df_new_loggers <- readr::read_csv(list_of_files, id = "file_name")
+
+
+# We need only double measurements --> create a filter
+df_metadata <- read_xlsx("../Field_Course_Urban_Climate/data/metadata_network_2023.xlsx")
+
+df_metadata <- df_metadata|>
+  # We want only double measurements, we need the code as well
+  filter(Doppel_Messnetz_23 == 'ja' & `Code grafana` != 'nocht nicht installiert')|>
+  select(Log_NR, `Code grafana`, NORD_CHTOPO, OST_CHTOPO,HüM)
+
+# we extract the identification code of the loggers
+logger_code <- df_metadata$`Code grafana`
+
+# because there are errors by reading the files, we use only the first four characters
+logger_code <- str_sub(logger_code , end = -9)
+
+# We create our own filter (with logical "or")
+own.filter <- logger_code|>
+  paste(collapse = "|")
+
+# and we have a data frame which contains only locations with a double measurement
+# Now we can use group_by or a filter to analize all locations at once
+df_new_loggers <- df_new_loggers |>
+  filter(str_detect(name, own.filter))|>
+  rename('temperature' = decodedXpayload_temperature,
+         'humidity' =decodedXpayload_humidity)|>
+  select(c('time', 'name', 'temperature', 'humidity'))
+```
+
+```{r}
+# We create a control-plot to check wheter we have 22 locations
+df_new_loggers|>
+  group_by(name)|>
+    ggplot(aes(x = time, y = temperature, color = name ))+
+  geom_line()+
+  theme_light()
+```
+
+```{r}
+# We extract the names of the differten groups in our database
+filter <- dplyr::pull(df_new_loggers|>
+  group_keys(name), name)
+
+# we write a function to calculate 
+regression_calculater <- function(filter = c(filter)){
+  RSQ <- NULL
+  for (i in filter) {
+    model <- lm(temperature ~ humidity, data = subset(df_new_loggers, name == i))
+    RSQ <- c(RSQ, round(summary(model)$r.squared, digits = 3))
+    }
+  my_tibble <- tibble('Location' = filter,
+                      'RSQ' = RSQ)
+  return(my_tibble)
+}
+
+RSQ_new_logger <- regression_calculater(filter)
+```
+
+```{r}
+# We change format of time and date for reference station in Zollikofen
+df_new_loggers$time <- strptime(df_new_loggers$time , format = "%Y-%m-%d %H:%M")
+df_new_loggers$time <- as.POSIXct(df_new_loggers$time, tz = "ETC/GMT-2")
+attr(df_new_loggers$time, "tzone")
+
+df_new_loggers <- df_new_loggers|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))
+
+# filter to control for-loop
+filter <- dplyr::pull(df_new_loggers|>
+  group_keys(name), name)
+
+dataset = NULL
+source("../Field_Course_Urban_Climate/R/ml_functions/spatial.upscale.R")
+# create a for loop --> it will create 40 plots!!
+for (i in filter){
+  dataset <- c(dataset, i)
+  # filter after logger code
+  df_temporary <- subset(df_new_loggers, name == i)
+  # create a temporare data frame
+  knn <- eval_model.upscale(model.AFU.opt, AFU_train, df_temporary, 
+           c("Zoll: KNN (k = 2)"), c("Zoll: KNN (k = 2)"), i)
+  lm <- eval_model.upscale(model.AFU.lm, AFU_train, df_temporary, 
+           c("Zoll: lm-model"), c("Zoll: lm-model"), i)
+  print(knn)
+  print(lm)
+}
+dataset
+
+
+
+
+```
