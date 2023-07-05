@@ -43,35 +43,35 @@ Reference: "Zollikofen"
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+----------------+----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                           |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number: | 98                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 20d1b9040ad9                           |
-+----------------+----------------------------------------+
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N   |
++-----------------+------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 98                                       |
++-----------------+------------------------------------------+
+| Code grafana    | 20d1b9040ad9                             |
++-----------------+------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger in Zollikofen
 
-+---------------+----------------------------------------+
-| Coordinates:  | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+---------------+----------------------------------------+
-| Altitude:     | 552.9 a.s.l                            |
-+---------------+----------------------------------------+
-| Time format:  | Old logger: UTC-2 / GMT-2              |
-|               |                                        |
-|               | New Logger: UTC / GMT                  |
-+---------------+----------------------------------------+
-| Logger Number | 99                                     |
-+---------------+----------------------------------------+
-| Code grafana  | 135a449d34a1                           |
-+---------------+----------------------------------------+
++-----------------+-----------------------------------------+
+| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++-----------------+-----------------------------------------+
+| Altitude:       | 552.9 a.s.l                             |
++-----------------+-----------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2               |
+|                 |                                         |
+|                 | New Logger: UTC / GMT                   |
++-----------------+-----------------------------------------+
+| Logger Number   | 99                                      |
++-----------------+-----------------------------------------+
+| Code grafana    | 135a449d34a1                            |
++-----------------+-----------------------------------------+
 
 : Table 3: Metadata for the 3m Logger in Zollikofen
 
@@ -122,6 +122,9 @@ and if yes, where are they?
 
 ## Missing Values
 
+The following code-chunk use a function to show us, whether there are and
+where the NAs are.
+
 ```{r visualize-missing-values, warning=FALSE, error=FALSE, message=FALSE}
 # Load the function to handle NAs
 source("../R/general/function.visualize.na.values.R")
@@ -142,8 +145,8 @@ visualize.na.values.without.groups(old_logger)
 ## Time-shift
 
 Because not all data has the same source we have to make sure all data
-works in the same time zone. For that we use lubridate which gives all the
-data a proper time- and date stamp. The old loggers works with CEST
+works in the same time zone. For that we use "lubridate" which gives all
+the data a proper time- and date stamp. The old loggers works with CEST
 (Central Europe Summer Time). We define this time zone for the loggers
 (CEST = GMT -2). We do the same for the reference station due to the same
 reasons as for the old loggers. The new loggers works on UTC and therefore,
@@ -154,6 +157,8 @@ Further, it is easier to work with one data frame. That is why me join all
 three data frames into one. We make sure that we only use data if the date
 and time occur in all three data frames. For that, we round the time to the
 next 10 minutes.
+
+At least, we change every -999 to NA.
 
 ```{r time-shift, warning=FALSE, error=FALSE, message=FALSE}
 #First, change format of time and date for the old logger in front of AFU
@@ -227,8 +232,11 @@ zoll_combined <- zoll_combined|>
 zoll_combined[zoll_combined == -9999] <- NA
 ```
 
+### Visualization of the time-shift
+
 Because we want to be sure that the time shift worked we visualize 48h of
-each data file.
+each data file. We see, that everything is OK and we can start with our
+analysis.
 
 ```{r vis_time_shift_control, warning=FALSE, error=FALSE, message=FALSE}
 # We plot 48h to be sure that the time shift worked
@@ -244,7 +252,10 @@ zoll_combined|>
   ggplot(aes(x = time, y = values, color = Legend)) + 
   geom_line(linewidth = 0.3)+
   labs(x = 'Time', y = 'Absolute Temperature [°C]', title = 'Zollikofen: Time shift control')+
-  theme_light()
+  scale_color_discrete(name = "Legend", labels = c("New Logger (2m)", "New Logger (3m)", "Old Logger (2m)", "Old Logger (3m)", "Reference Station (2m)")) +
+  theme_light()+
+  theme(panel.border = 
+          element_rect(colour = "black", fill = NA, linewidth = 1))
 ```
 
 ## Calculate anomalies
@@ -322,6 +333,11 @@ if (!file.exists(name.of.file)){
 
 ## Data Split
 
+Because solar irradiance is probably the biggest problem, the error through
+the night is deeper than through the day. Therefore we analyze the whole
+day (24h), through the day (day-time 06:00 - 22:00) and through the night
+(night-time (22:00 - 06:00).
+
 ```{r split_data }
 zoll_day <- zoll_combined|>
   mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
@@ -365,29 +381,11 @@ overview_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11)
 overview_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 ```
 
-## Scatterplot
-
-```{r}
-# Scatter-plot new logger - reference station at Zollikofen (2m)
-overview_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE)
-
-# scatterplot old logger - reference station at Zollikofen (2m)
-overview_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
-
-# scatterplot new logger - old logger at Zollikofen (2m)
-overview_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
-
-# Scatter-plot new logger - reference station at Zollikofen (3m)
-overview_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE)
-
-# scatterplot old logger - reference station at Zollikofen (3m)
-overview_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FALSE)
-
-# scatterplot new logger - old logger at Zollikofen (3m)
-overview_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FALSE)
-```
-
 ## Boxplot
+
+### Boxplot 24h
+
+We plot a Boxplot for our 24h data set
 
 ```{r}
 # Boxplot new logger - reference station at Zollikofen (2m)
@@ -409,6 +407,8 @@ boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11)
 boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 ```
 
+### Boxplot during day-time
+
 ```{r}
 # Boxplot new logger - reference station at Zollikofen 2m (daytime)
 boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE)
@@ -428,6 +428,8 @@ boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FALSE)
 # Boxplot new logger - old logger at Zollikofen 3m (daytime)
 boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FALSE)
 ```
+
+### Boxplot during night-time
 
 ```{r}
 # Boxplot new logger - reference station at Zollikofen 2m (nighttime)
@@ -457,6 +459,8 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ## Density-plot
 
+### Density-Plot 24h
+
 ```{r}
 # Densityplot new logger - reference station at Zollikofen (2m)
 densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8)
@@ -476,6 +480,8 @@ densityplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11)
 # Densityplot new logger - old logger at Zollikofen (3m)
 densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 ```
+
+### Density-Plot during day-time
 
 ```{r}
 # Densityplot new logger - reference station at Zollikofen 2m (daytime)
@@ -497,6 +503,8 @@ densityplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FA
 densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FALSE)
 
 ```
+
+### Density-Plot during night-time
 
 ```{r}
 # Densityplot new logger - reference station at Zollikofen 2m (nighttime)
@@ -529,8 +537,11 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ## Errors
 
-```{r}
+It is very complicated to calculate the errors. Unfortunately, I was not
+able to use any kind of a loop because the data are to diverse. This is why
+you see this mess...
 
+```{r}
 VARIABLE <- c('24h, new_2 - ref', '24h, old_2 - ref',
            '24h, new_3 - ref', '24h, old_3 - ref',
            'day-time, new_2 - ref', 'day-time, old_2 - ref', 
@@ -541,17 +552,18 @@ VARIABLE <- c('24h, new_2 - ref', '24h, old_2 - ref',
            'day-time, new_2 - old_2', 'day-time, new_3 - old_3',
            'night-time, new_2 - old_2', 'night-time, new_3 - old_3')
 
-
-
-round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_ref)^2)), digits = 3)
-
-RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
+###############################################################################################
+RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_ref)^2, 
+                          na.rm = TRUE)), 
                 digits = 3),
-          round(sqrt(mean((zoll_combined$temp_old_logger_2-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
+          round(sqrt(mean((zoll_combined$temp_old_logger_2-zoll_combined$temp_ref)^2, 
+                          na.rm = TRUE)), 
                 digits = 3),
-          round(sqrt(mean((zoll_combined$temp_new_logger_3-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
+          round(sqrt(mean((zoll_combined$temp_new_logger_3-zoll_combined$temp_ref)^2, 
+                          na.rm = TRUE)), 
                 digits = 3),
-          round(sqrt(mean((zoll_combined$temp_old_logger_3-zoll_combined$temp_ref)^2, na.rm = TRUE)), 
+          round(sqrt(mean((zoll_combined$temp_old_logger_3-zoll_combined$temp_ref)^2, 
+                          na.rm = TRUE)), 
                 digits = 3),
           round(sqrt(mean((zoll_day$temp_new_logger_2-zoll_day$temp_ref)^2, na.rm = TRUE)), 
                 digits = 3),
@@ -582,6 +594,7 @@ RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_re
           round(sqrt(mean((zoll_night$temp_new_logger_3-zoll_night$temp_old_logger_3)^2,
                           na.rm = TRUE)), digits = 3))
 
+###############################################################################################
 MAE <- c(round(mean(abs(zoll_combined$temp_new_logger_2-zoll_combined$temp_ref),
                     na.rm = TRUE), digits = 3),
           round(mean(abs(zoll_combined$temp_old_logger_2-zoll_combined$temp_ref), 
@@ -619,6 +632,7 @@ MAE <- c(round(mean(abs(zoll_combined$temp_new_logger_2-zoll_combined$temp_ref),
           round(mean(abs(zoll_night$temp_new_logger_3-zoll_night$temp_old_logger_3), 
                      na.rm = TRUE),digits = 3))
 
+###############################################################################################
 BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
                    length(zoll_combined$temp_ref)), digits = 3), 
           round((sum(zoll_combined$temp_old_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
@@ -643,21 +657,28 @@ BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref, n
                    length(zoll_night$temp_ref)), digits = 3),
           round((sum(zoll_night$temp_old_logger_3 - zoll_night$temp_ref, na.rm = TRUE)/
                    length(zoll_night$temp_ref)), digits = 3),
-          round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_old_logger_2, na.rm = TRUE)/
+          round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_old_logger_2,
+                     na.rm = TRUE)/
                    length(zoll_combined$temp_old_logger_2)), digits = 3),
-          round((sum(zoll_combined$temp_new_logger_3 - zoll_combined$temp_old_logger_3, na.rm = TRUE)/
+          round((sum(zoll_combined$temp_new_logger_3 - zoll_combined$temp_old_logger_3, 
+                     na.rm = TRUE)/
                    length(zoll_combined$temp_old_logger_3)), digits = 3),
-          round((sum(zoll_day$temp_new_logger_2 - zoll_day$temp_old_logger_2, na.rm = TRUE)/
+          round((sum(zoll_day$temp_new_logger_2 - zoll_day$temp_old_logger_2, 
+                     na.rm = TRUE)/
                    length(zoll_day$temp_old_logger_2)), digits = 3),
-          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_old_logger_3, na.rm = TRUE)/
+          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_old_logger_3, 
+                     na.rm = TRUE)/
                    length(zoll_night$temp_old_logger_3)), digits = 3),
-                 round((sum(zoll_night$temp_new_logger_2 - zoll_night$temp_old_logger_2, na.rm = TRUE)/
+                 round((sum(zoll_night$temp_new_logger_2 - zoll_night$temp_old_logger_2,
+                            na.rm = TRUE)/
                    length(zoll_night$temp_old_logger_2)), digits = 3),
-          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_old_logger_3, na.rm = TRUE)/
+          round((sum(zoll_night$temp_new_logger_3 - zoll_night$temp_old_logger_3, 
+                     na.rm = TRUE)/
                    length(zoll_night$temp_ref)), digits = 3))
 
-test <- cbind(VARIABLE, RMSE, MAE, BIAS)
-knitr::kable(test, caption = 'Table 1: Overview about error-metrics at Zollikofen')|>
+###############################################################################################
+df <- cbind(VARIABLE, RMSE, MAE, BIAS)
+knitr::kable(df, caption = 'Table 1: Overview about error-metrics at Zollikofen')|>
     kableExtra::kable_classic_2(full_width = T)
 ```
 
@@ -665,6 +686,7 @@ knitr::kable(test, caption = 'Table 1: Overview about error-metrics at Zollikofe
 
 ```{r}
 # Calculate the main statistic parameters
+# for 24h
 knitr::kable(zoll_combined|>
   rename(new_ref_2 = `Anomaly_new_log_ref2`,
          old_ref_2 = `Anomaly_old_log_ref2`,
@@ -694,7 +716,8 @@ knitr::kable(zoll_combined|>
   caption = "Table 2: Main statistics parameters of Zollikofen (24h)",
   align = c('l', rep('c', times = 10)))|>
   kableExtra::kable_classic_2(full_width = T)
-
+###############################################################################################
+# During day-time
 knitr::kable(zoll_combined|>
   rename(new_ref_2 = `Anomaly_new_log_ref2`,
          old_ref_2 = `Anomaly_old_log_ref2`,
@@ -725,7 +748,8 @@ knitr::kable(zoll_combined|>
   caption = "Table 3: Main statistics parameters of Zollikofen (day-time)",
   align = c('l', rep('c', times = 10)))|>
   kableExtra::kable_classic_2(full_width = T)
-
+###############################################################################################
+# during night-time
 knitr::kable(zoll_combined|>
   rename(new_ref_2 = `Anomaly_new_log_ref2`,
          old_ref_2 = `Anomaly_old_log_ref2`,

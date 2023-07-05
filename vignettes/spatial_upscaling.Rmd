@@ -401,7 +401,7 @@ logger_number <- pull(df_metadata|>
                         filter(Log_NR != 13 & Log_NR != 102 ))
   
 
-overview <- tibble(
+overview_zoll <- tibble(
   'Logger_number' = logger_number,
   'Logger_code' = filter,
   'RMSE' = RMSE,
