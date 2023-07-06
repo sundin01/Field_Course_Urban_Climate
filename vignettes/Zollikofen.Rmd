@@ -10,6 +10,11 @@ output:
 editor_options:
   markdown:
     wrap: 75
+  pdf_document:
+    extra_dependencies:
+    caption: ["labelfont={bf}"]
+    hyperref: ["unicode=true", "breaklinks=true"]
+    lmodern: null
 ---
 
 Course: Field Course Micrometeorology and Urban Climate at the University
@@ -33,45 +38,48 @@ Reference: "Zollikofen"
 
 # Introduction
 
-|              |                   |
-|--------------|-------------------|
-| Coordinates: | 7°28' E, 46°59' N |
-| Altitude:    | 552 a.s.l.        |
-| Time:        | UTC / GMT         |
-| Source:      | Meteo Schweiz     |
++-----------------+-------------------------------------------+
+| Coordinates:    | 7°28' E, 46°59' N                         |
++-----------------+-------------------------------------------+
+| Altitude:       | 552 a.s.l.                                |
++-----------------+-------------------------------------------+
+| Time:           | UTC / GMT                                 |
++-----------------+-------------------------------------------+
+| Source:         | Meteo Schweiz                             |
++-----------------+-------------------------------------------+
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+----------------+----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                           |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number: | 98                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 20d1b9040ad9                           |
-+----------------+----------------------------------------+
++-----------------+--------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N     |
++-----------------+--------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                               |
++-----------------+--------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                  |
+|                 |                                            |
+|                 | New Logger: UTC / GMT                      |
++-----------------+--------------------------------------------+
+| Logger Number:  | 98                                         |
++-----------------+--------------------------------------------+
+| Code grafana    | 20d1b9040ad9                               |
++-----------------+--------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger in Zollikofen
 
-+---------------+----------------------------------------+
-| Coordinates:  | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+---------------+----------------------------------------+
-| Altitude:     | 552.9 a.s.l                            |
-+---------------+----------------------------------------+
-| Time format:  | Old logger: UTC-2 / GMT-2              |
-|               |                                        |
-|               | New Logger: UTC / GMT                  |
-+---------------+----------------------------------------+
-| Logger Number | 99                                     |
-+---------------+----------------------------------------+
-| Code grafana  | 135a449d34a1                           |
-+---------------+----------------------------------------+
++-----------------+-------------------------------------------+
+| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N    |
++-----------------+-------------------------------------------+
+| Altitude:       | 552.9 a.s.l                               |
++-----------------+-------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                 |
+|                 |                                           |
+|                 | New Logger: UTC / GMT                     |
++-----------------+-------------------------------------------+
+| Logger Number   | 99                                        |
++-----------------+-------------------------------------------+
+| Code grafana    | 135a449d34a1                              |
++-----------------+-------------------------------------------+
 
 : Table 3: Metadata for the 3m Logger in Zollikofen
 
@@ -389,29 +397,52 @@ We plot a Boxplot for our 24h data set
 
 ```{r}
 # Boxplot new logger - reference station at Zollikofen (2m)
-boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8)
+box_2m_24h <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8,
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_2_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_2m_24h
+dev.off
 
 # Boxplot old logger - reference station at Zollikofen (2m)
-boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9,
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
 
 # Boxplot new logger - old logger at Zollikofen (2m)
-boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12,
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
 
 # Boxplot new logger - reference station at Zollikofen (3m)
-boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10)
+box_3m_24h <- boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10,
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_3_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_3m_24h
+dev.off
 
 # Boxplot old logger - reference station at Zollikofen (3m)
-boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11,
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
 
 # Boxplot new logger - old logger at Zollikofen (3m)
-boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
+boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+
 ```
 
 ### Boxplot during day-time
 
 ```{r}
 # Boxplot new logger - reference station at Zollikofen 2m (daytime)
-boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE)
+box_2m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE,
+                              ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_day_2_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_2m_day
+dev.off
 
 # Boxplot old logger - reference station at Zollikofen 2m (daytime)
 boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
@@ -420,7 +451,13 @@ boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
 boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
 
 # Boxplot new logger - reference station at Zollikofen 3m (daytime)
-boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE)
+box_3m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE,
+                              ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_day_3_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_3m_day
+dev.off
 
 # Boxplot old logger - reference station at Zollikofen 3m (daytime)
 boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FALSE)
@@ -485,7 +522,13 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 
 ```{r}
 # Densityplot new logger - reference station at Zollikofen 2m (daytime)
-densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE)
+density_2m_day <- densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE,
+                    ylab = c('Density'), xlab = c('Temperature Anomaly [K]'))
+
+pdf(file = '../analysis/graphs_report/Densityplot//density_day_2_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+density_2m_day
+dev.off
 
 # Densityplot old logger - reference station at Zollikofen 2m (daytime)
 densityplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
@@ -494,7 +537,13 @@ densityplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FAL
 densityplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
 
 # Densityplot new logger - reference station at Zollikofen 3m (daytime)
-densityplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE)
+density_3m_day <- densityplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE,
+                    ylab = c('Density'), xlab = c('Temperature Anomaly [K]'))
+
+pdf(file = '../analysis/graphs_report/Densityplot//density_day_3_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+density_3m_day
+dev.off
 
 # Densityplot old logger - reference station at Zollikofen 3m (daytime)
 densityplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11, whole = FALSE)
@@ -551,8 +600,7 @@ VARIABLE <- c('24h, new_2 - ref', '24h, old_2 - ref',
            '24h, new_2 - old_2', '24h, new_3 - old_3',
            'day-time, new_2 - old_2', 'day-time, new_3 - old_3',
            'night-time, new_2 - old_2', 'night-time, new_3 - old_3')
-
-###############################################################################################
+##########################################################################################################
 RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_ref)^2, 
                           na.rm = TRUE)), 
                 digits = 3),
@@ -593,8 +641,7 @@ RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_re
                           na.rm = TRUE)), digits = 3),
           round(sqrt(mean((zoll_night$temp_new_logger_3-zoll_night$temp_old_logger_3)^2,
                           na.rm = TRUE)), digits = 3))
-
-###############################################################################################
+##########################################################################################################
 MAE <- c(round(mean(abs(zoll_combined$temp_new_logger_2-zoll_combined$temp_ref),
                     na.rm = TRUE), digits = 3),
           round(mean(abs(zoll_combined$temp_old_logger_2-zoll_combined$temp_ref), 
@@ -631,8 +678,7 @@ MAE <- c(round(mean(abs(zoll_combined$temp_new_logger_2-zoll_combined$temp_ref),
                      na.rm = TRUE), digits = 3),
           round(mean(abs(zoll_night$temp_new_logger_3-zoll_night$temp_old_logger_3), 
                      na.rm = TRUE),digits = 3))
-
-###############################################################################################
+#########################################################################################################
 BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
                    length(zoll_combined$temp_ref)), digits = 3), 
           round((sum(zoll_combined$temp_old_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
@@ -680,6 +726,9 @@ BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref, n
 df <- cbind(VARIABLE, RMSE, MAE, BIAS)
 knitr::kable(df, caption = 'Table 1: Overview about error-metrics at Zollikofen')|>
     kableExtra::kable_classic_2(full_width = T)
+##########################################################################################################
+# Generate Latex-code
+xtable(df, align = c('l', 'c', 'c', 'c', 'c'))
 ```
 
 ## Main paramater
@@ -687,7 +736,7 @@ knitr::kable(df, caption = 'Table 1: Overview about error-metrics at Zollikofen'
 ```{r}
 # Calculate the main statistic parameters
 # for 24h
-knitr::kable(zoll_combined|>
+zoll_24 <- data.frame(zoll_combined|>
   rename(new_ref_2 = `Anomaly_new_log_ref2`,
          old_ref_2 = `Anomaly_old_log_ref2`,
          new_old_2 = `Anomaly_new_log_old_log2`,
@@ -712,13 +761,10 @@ knitr::kable(zoll_combined|>
          q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
-         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
-  caption = "Table 2: Main statistics parameters of Zollikofen (24h)",
-  align = c('l', rep('c', times = 10)))|>
-  kableExtra::kable_classic_2(full_width = T)
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3)))
 ###############################################################################################
 # During day-time
-knitr::kable(zoll_combined|>
+zoll_daytime <- zoll_combined|>
   rename(new_ref_2 = `Anomaly_new_log_ref2`,
          old_ref_2 = `Anomaly_old_log_ref2`,
          new_old_2 = `Anomaly_new_log_old_log2`,
@@ -744,13 +790,10 @@ knitr::kable(zoll_combined|>
          q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
-         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
-  caption = "Table 3: Main statistics parameters of Zollikofen (day-time)",
-  align = c('l', rep('c', times = 10)))|>
-  kableExtra::kable_classic_2(full_width = T)
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3))
 ###############################################################################################
 # during night-time
-knitr::kable(zoll_combined|>
+zoll_nighttime <- zoll_combined|>
   rename(new_ref_2 = `Anomaly_new_log_ref2`,
          old_ref_2 = `Anomaly_old_log_ref2`,
          new_old_2 = `Anomaly_new_log_old_log2`,
@@ -776,8 +819,10 @@ knitr::kable(zoll_combined|>
          q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
-         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
-  caption = "Table 4: Main statistics parameters of Zollikofen (night-time)",
-  align = c('l', rep('c', times = 10)))|>
-  kableExtra::kable_classic_2(full_width = T)
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3))
+##########################################################################################################
+# generate latex code
+xtable(zoll_24, align = c('l', rep('c', times = 11)))
+xtable(zoll_daytime, align = c('l', rep('c', times = 11)))
+xtable(zoll_nighttime, align = c('l', rep('c', times = 11)))
 ```

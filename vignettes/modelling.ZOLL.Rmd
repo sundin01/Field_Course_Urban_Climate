@@ -31,6 +31,10 @@ Markella Bouchoriku (markella.bouchoriku\@students.unibe.ch )
 
 Reference: "Spatial Upscaling"
 
+# Preparation
+
+## Read packages
+
 ```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
 # install and activate all packages we need
 source("../Field_Course_Urban_Climate/R/general/packages.R")
@@ -47,6 +51,8 @@ conflicts_prefer(lubridate::stamp)
 conflicts_prefer(lubridate::hour)
 conflicts_prefer(recipes::fixed)
 ```
+
+## Read data
 
 ```{r read_the_data, warning=FALSE, error=FALSE, message=FALSE}
 # We read the reference data from Zollikofen
@@ -66,6 +72,16 @@ ZOLL <- ZOLL|>
          'temperature' = as.numeric(as.character(unlist(ZOLL[,'tre200s0']))))|>
   select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
 ```
+
+# Implementation of KNN
+
+## Split data and model training
+
+-   Split data
+
+-   Training
+
+-   optimaze k (overfit vs. underfit)
 
 ```{r split_the_data, warning=FALSE, error=FALSE, message=FALSE }
 # We load our functions
@@ -120,7 +136,9 @@ model.ZOLL.opt.appraoch <- knn.cv.model.a(ZOLL_train_approach, 2)
 model.ZOLL.lm.approach <- lm.model.a(ZOLL_train_approach)
 ```
 
-## Evaluation of Zollikofen
+# Evaluation
+
+## Performance Zollikofen
 
 Here, we evaluate Zollikofen. We use our simple model (model.ZOLL.opt)
 which contains only the target (temperature) and a predictor (humidity). We
@@ -155,34 +173,6 @@ eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, ZOLL_test_approach,
 # expanded lm
 eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach, 
            c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
-```
-
-### Spatial up-scaling with Zollikofen
-
-We use our siimple models
-
-```{r}
-# simple KNN
-eval_model(model.ZOLL.opt, ZOLL_train_approach, AFU_test_approach, 
-           c("AFU: KNN-expanded (k = 17)"), 
-           c("AFU: KNN-expanded (k = 17)"))
-
-# simple lm
-eval_model(model.ZOLL.lm, ZOLL_train_approach, AFU_test_approach, 
-           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
-```
-
-We use our expanded model
-
-```{r upsacling-zollikofen, warning=FALSE, error=FALSE, message=FALSE}
-# expanded KNN
-eval_model(model.ZOLL.opt.appraoch, ZOLL_train_approach, AFU_test_approach, 
-           c("AFU: KNN-expanded (k = 17)"), 
-           c("AFU: KNN-expanded (k = 17)"))
-
-# expanden lm
-eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, AFU_test_approach, 
-           c("AFU: lm-model-expanded"), c("AFU: lm-model-expanded"))
 ```
 
 ### Zollikofen 2m Logger
@@ -242,6 +232,8 @@ eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_3,
            c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
 ```
 
+# Spatial up-scaling
+
 ## Read multiple csv-files at once
 
 We read multiple csv-files at once
@@ -284,6 +276,8 @@ df_new_loggers <- df_new_loggers |>
   select(c('time', 'name', 'temperature', 'humidity'))
 ```
 
+### Control-Plot
+
 ```{r control_plot, warning=FALSE, error=FALSE, message=FALSE}
 # We create a control-plot to check wheter we have 22 locations
 df_new_loggers|>
@@ -296,6 +290,8 @@ df_new_loggers|>
 ## Modelling
 
 ### Regression
+
+But it is not suitable...
 
 ```{r regression, warning=FALSE, error=FALSE, message=FALSE}
 # regression time vs. temperatur (which is probably nonsense)
@@ -321,28 +317,7 @@ df_new_loggers|>
   facet_wrap(~name)
 ```
 
-We have to know whether temperature and humidity correlate. We define a RSQ
-\>0.7 as a threshold. After that we apply our models on them.
-
-```{r}
-# We extract the names of the differten groups in our database
-filter <- dplyr::pull(df_new_loggers|>
-  group_keys(name), name)
-
-# we write a function to calculate 
-regression_calculater <- function(filter = c(filter)){
-  RSQ <- NULL
-  for (i in filter) {
-    model <- lm(temperature ~ humidity, data = subset(df_new_loggers, name == i))
-    RSQ <- c(RSQ, round(summary(model)$r.squared, digits = 3))
-    }
-  my_tibble <- data_frame('Location' = filter,
-                      'RSQ' = RSQ)
-  return(my_tibble)
-}
-
-RSQ_new_logger <- regression_calculater(filter)
-```
+## KNN-models and lm-models for all 20 locations at once
 
 ```{r}
 # We change format of time and date for reference station in Zollikofen

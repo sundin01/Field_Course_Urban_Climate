@@ -104,6 +104,8 @@ station)
 
 # Preparation
 
+## Read packages
+
 ```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
 # install and activate all packages we need
 source("../Field_Course_Urban_Climate/R/general/packages.R")
@@ -115,6 +117,8 @@ conflicts_prefer(dplyr::mutate)
 conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::rename)
 ```
+
+## Read files
 
 ```{r read_the_data, warning=FALSE, error=FALSE, message=FALSE}
 # We read the reference data from AFU
@@ -139,9 +143,9 @@ AFU <- AFU|>
   select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
 ```
 
-# Maschine Learning (KNN-Algorithm)
+# Implementation of KNN
 
-## AFU Expanded
+## Split data and model training
 
 ```{r calculate-AFU-model, warning=FALSE, error=FALSE, message=FALSE}
 # We load our functions for simple model
@@ -199,7 +203,7 @@ model.AFU.opt <- knn.cv.model(AFU_train, 17)
 model.AFU.lm <- lm.model(AFU_train)
 ```
 
-# Evaluation, spatial up-scaling and estimate performance
+# Evaluation
 
 ## Evaluation of AFU
 
@@ -265,6 +269,10 @@ eval_model(model.AFU.lm, AFU_train, new_logger_AFU,
            c("AFU: lm-model"), c("AFU: lm-model"))
 ```
 
+# Spatial up-scaling
+
+## Read multiple csv-files at once
+
 Expand on all double measurements locations
 
 ```{r}
@@ -305,6 +313,8 @@ df_new_loggers <- df_new_loggers |>
   select(c('time', 'name', 'temperature', 'humidity'))
 ```
 
+### Control-Plot
+
 ```{r}
 # We create a control-plot to check wheter we have 22 locations
 df_new_loggers|>
@@ -314,25 +324,9 @@ df_new_loggers|>
   theme_light()
 ```
 
-```{r}
-# We extract the names of the differten groups in our database
-filter <- dplyr::pull(df_new_loggers|>
-  group_keys(name), name)
+# Modelling
 
-# we write a function to calculate 
-regression_calculater <- function(filter = c(filter)){
-  RSQ <- NULL
-  for (i in filter) {
-    model <- lm(temperature ~ humidity, data = subset(df_new_loggers, name == i))
-    RSQ <- c(RSQ, round(summary(model)$r.squared, digits = 3))
-    }
-  my_tibble <- tibble('Location' = filter,
-                      'RSQ' = RSQ)
-  return(my_tibble)
-}
-
-RSQ_new_logger <- regression_calculater(filter)
-```
+## KNN-models and lm-models for all 20 locations at once
 
 ```{r}
 # We change format of time and date for reference station in Zollikofen
@@ -349,6 +343,40 @@ filter <- dplyr::pull(df_new_loggers|>
 
 dataset = NULL
 source("../Field_Course_Urban_Climate/R/ml_functions/spatial.upscale.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/metric_extracter.R")
+
+# define vectors
+rmse_test_knn <- NULL
+rsq_test_knn <- NULL
+bias_test_knn <- NULL
+rmse_test_lm <- NULL
+rsq_test_lm <- NULL
+bias_test_lm <- NULL
+# for loop to extract metrics
+for (i in filter){
+  # filter after logger code
+  df_temporary <- subset(df_new_loggers, name == i)
+  # create a temporare data frame
+  rmse_test_knn <- c(rmse_test_knn, rmse_extracter(model.AFU.opt, AFU_train, df_temporary))
+  rsq_test_knn <- c(rsq_test_knn, rsq_extracter(model.AFU.opt, AFU_train, df_temporary))
+  bias_test_knn <- c(bias_test_knn, bias_extracter(model.AFU.opt, AFU_train, df_temporary))
+  rmse_test_lm <- c(rmse_test_lm, rmse_extracter(model.AFU.lm, AFU_train, df_temporary))
+  rsq_test_lm <- c(rsq_test_lm, rsq_extracter(model.AFU.lm, AFU_train, df_temporary))
+  bias_test_lm <- c(bias_test_lm, bias_extracter(model.AFU.lm, AFU_train, df_temporary))
+}
+
+overview <- data.frame('Logger-code' = filter,
+                       'RSME KNN' = rmse_test_knn,
+                       'RSQ KNN' = rsq_test_knn ,
+                       'Bias KNN' = bias_test_knn,
+                       'RSME lm' = rmse_test_lm,
+                       'RSQ lm' = rsq_test_lm,
+                       'Bias lm' = bias_test_lm)
+# generate latex code
+xtable(overview, align = c('l','l', 'c', 'c', 'c', 'c', 'c', 'c'))
+```
+
+```{r}
 # create a for loop --> it will create 40 plots!!
 for (i in filter){
   dataset <- c(dataset, i)
@@ -362,9 +390,4 @@ for (i in filter){
   print(knn)
   print(lm)
 }
-dataset
-
-
-
-
 ```

@@ -372,10 +372,16 @@ Day-time
 boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
 
 # Boxplot old logger - reference station at AFU (daytime)
-boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE)
+box_2m_day <- boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE,
+                              ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
 
 # Boxplot new logger - old logger at AFU (daytime)
 boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE)
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_day_2_afu.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_2m_day
+dev.off
 ```
 
 Night-time
@@ -417,7 +423,13 @@ densityplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE
                     subtitle = c("23.3.4567"), xlab = c("x-Achse"), ylab = c("y-Achse"))
 
 # Densityplot old logger - reference station at AFU (daytime)
-densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE)
+density_2m_day <- densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE,
+                                      ylab = c('Density'), xlab = c('Temperature Anomaly [K]'))
+
+pdf(file = '../analysis/graphs_report/Densityplot//density_day_2_afu.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+density_2m_day
+dev.off
 
 # Densityplot new logger - old logger at AFU (daytime)
 densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE)
@@ -499,7 +511,7 @@ knitr::kable(test, caption = 'Table 1: Overview about error-metrics')|>
 
 ```{r statistics}
 # Calculate the main statistic parameters
-knitr::kable(AFU_combined|>
+afu_24 <- AFU_combined|>
   rename(new_ref = `Anomaly_new_log_ref`,
          old_ref = `Anomaly_old_log_ref`,
          new_old = `Anomaly_new_log_old_log`)|>
@@ -522,12 +534,9 @@ knitr::kable(AFU_combined|>
          q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
-         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
-  caption = "Table 2: Main statistics parameters of AFU (whole day)",
-  align = c('l', rep('c', times = 10)))|>
-  kableExtra::kable_classic_2(full_width = T)
-
-knitr::kable(AFU_combined|>
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3))
+##########################################################################################################
+afu_daytime <- AFU_combined|>
   rename(new_ref = `Anomaly_new_log_ref`,
          old_ref = `Anomaly_old_log_ref`,
          new_old = `Anomaly_new_log_old_log`)|>
@@ -551,12 +560,9 @@ knitr::kable(AFU_combined|>
          q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
-         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
-  caption = "Table 3: Main statistics parameters of AFU (night-time)", 
-  align = c('l', rep('c', times = 10)))|>
-  kableExtra::kable_classic_2(full_width = T)
-
-knitr::kable(AFU_combined|>
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3))
+##########################################################################################################
+afu_nighttime <- AFU_combined|>
   rename(new_ref = `Anomaly_new_log_ref`,
          old_ref = `Anomaly_old_log_ref`,
          new_old = `Anomaly_new_log_old_log`)|>
@@ -580,8 +586,10 @@ knitr::kable(AFU_combined|>
          q75 = round(quantile(values, probs = .75,na.rm = TRUE), digits = 3),
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
-         skewness = round(skewness(values, na.rm = TRUE), digits = 3)),
-  caption = "Table 4: Main statistics parameters of AFU (night-time)", 
-  align = c('l', rep('c', times = 10)))|>
-  kableExtra::kable_classic_2(full_width = T)
+         skewness = round(skewness(values, na.rm = TRUE), digits = 3))
+##########################################################################################################
+# generate latex code
+xtable(afu_24, align = c('l', rep('c', times = 11)))
+xtable(afu_daytime, align = c('l', rep('c', times = 11)))
+xtable(afu_nighttime, align = c('l', rep('c', times = 11)))
 ```
