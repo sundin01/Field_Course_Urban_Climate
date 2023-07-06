@@ -10,7 +10,7 @@ overview_creater <- function(database, yvar, title = c("title"), subtitle = c("S
       drop_na()|>
       ggplot(aes(x = aggregate_hourly, y = {{yvar}})) +
       geom_line(linewidth = 0.2) +
-      geom_ribbon(aes(y = mean, ymin = mean - std, ymax = mean + std), alpha = 0.1, fill = "red")+
+      geom_ribbon(aes(y = mean, ymin = mean - std, ymax = mean + std), alpha = 0.1, fill = "red") +
       geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
       geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
       labs(x = paste(xlab), y = paste(ylab), title = paste(title),subtitle = paste(subtitle)) +
@@ -52,8 +52,7 @@ boxplot_creater <- function(database, yvar, title = c("title"), subtitle = c("Su
       stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
       geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
       geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
-      labs(x = paste(xlab), y = paste(ylab), title = paste(title),
-           subtitle = paste(subtitle)) +
+      labs(x = paste(xlab), y = paste(ylab)) +
       theme_light()
     return(plot_1)}
   else if(day == TRUE){
@@ -72,10 +71,13 @@ boxplot_creater <- function(database, yvar, title = c("title"), subtitle = c("Su
       # Add an error-bar and make a individual setup
       stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
       geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
-      geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
-      labs(x = paste(xlab), y = paste(ylab), title = paste(title),
-           subtitle = paste(subtitle)) +
+      geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red") +
+      labs(x = paste(xlab), y = paste(ylab)) +
       theme_light()
+    pdf("../analysis/graphs_report/boxplot_day.pdf",
+        width = 12 / 2.54, height = 10 / 2.54)
+    plot_1
+    dev.off()
     return(plot_1)}
   else{
     std <- round(sd(database[[colnbr]]), digits = 3)
@@ -93,12 +95,15 @@ boxplot_creater <- function(database, yvar, title = c("title"), subtitle = c("Su
       # Add an error-bar and make a individual setup
       stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
       geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
-      geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
-      labs(x = paste(xlab), y = paste(ylab), title = paste(title),
-           subtitle = paste(subtitle)) +
+      geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red") +
+      labs(x = paste(xlab), y = paste(ylab)) +
       theme_light()
+    pdf("../analysis/graphs_report/boxplot_night.pdf",
+        width = 12 / 2.54, height = 10 / 2.54)
+    plot_1
+    dev.off()
     return(plot_1)}
-}    
+}
 
 # Function for density-plot
 densityplot_creater <- function(database, xvar, title = c("title"), subtitle = c("Subtitle"),
@@ -116,8 +121,7 @@ densityplot_creater <- function(database, xvar, title = c("title"), subtitle = c
       geom_density(color = "blue", linewidth = 0.7)+
       geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
       geom_vline(xintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
-      labs(x = paste(xlab),y = paste(ylab), title = paste(title), 
-           subtitle = paste(subtitle))+
+      labs(x = paste(xlab),y = paste(ylab))+
       theme_light()
     return(plot_1)}
   else if(day == TRUE){
@@ -134,8 +138,7 @@ densityplot_creater <- function(database, xvar, title = c("title"), subtitle = c
       geom_density(color = "blue", linewidth = 0.7)+
       geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
       geom_vline(xintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
-      labs(x = paste(xlab),y = paste(ylab), title = paste(title), 
-           subtitle = paste(subtitle))+
+      labs(x = paste(xlab),y = paste(ylab))+
       theme_light()
     return(plot_1)}
   else{
@@ -152,8 +155,7 @@ densityplot_creater <- function(database, xvar, title = c("title"), subtitle = c
       geom_density(color = "blue", linewidth = 0.7)+
       geom_vline(xintercept = 0, size = 0.1, linetype = "dotted" )+
       geom_vline(xintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
-      labs(x = paste(xlab),y = paste(ylab), title = paste(title), 
-           subtitle = paste(subtitle))+
+      labs(x = paste(xlab),y = paste(ylab))+
       theme_light()
     return(plot_1)}
 }
