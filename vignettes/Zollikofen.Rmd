@@ -38,48 +38,48 @@ Reference: "Zollikofen"
 
 # Introduction
 
-+-----------------+-------------------------------------------+
-| Coordinates:    | 7°28' E, 46°59' N                         |
-+-----------------+-------------------------------------------+
-| Altitude:       | 552 a.s.l.                                |
-+-----------------+-------------------------------------------+
-| Time:           | UTC / GMT                                 |
-+-----------------+-------------------------------------------+
-| Source:         | Meteo Schweiz                             |
-+-----------------+-------------------------------------------+
++-----------------+--------------------------------------------+
+| Coordinates:    | 7°28' E, 46°59' N                          |
++-----------------+--------------------------------------------+
+| Altitude:       | 552 a.s.l.                                 |
++-----------------+--------------------------------------------+
+| Time:           | UTC / GMT                                  |
++-----------------+--------------------------------------------+
+| Source:         | Meteo Schweiz                              |
++-----------------+--------------------------------------------+
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
++-----------------+---------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N      |
++-----------------+---------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                                |
++-----------------+---------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                   |
+|                 |                                             |
+|                 | New Logger: UTC / GMT                       |
++-----------------+---------------------------------------------+
+| Logger Number:  | 98                                          |
++-----------------+---------------------------------------------+
+| Code grafana    | 20d1b9040ad9                                |
++-----------------+---------------------------------------------+
+
+: Table 2: Metadata for the 2m Logger in Zollikofen
+
 +-----------------+--------------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N     |
+| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N     |
 +-----------------+--------------------------------------------+
-| Altitude:       | 552.9 a.s.l.                               |
+| Altitude:       | 552.9 a.s.l                                |
 +-----------------+--------------------------------------------+
 | Time format:    | Old logger: UTC-2 / GMT-2                  |
 |                 |                                            |
 |                 | New Logger: UTC / GMT                      |
 +-----------------+--------------------------------------------+
-| Logger Number:  | 98                                         |
+| Logger Number   | 99                                         |
 +-----------------+--------------------------------------------+
-| Code grafana    | 20d1b9040ad9                               |
+| Code grafana    | 135a449d34a1                               |
 +-----------------+--------------------------------------------+
-
-: Table 2: Metadata for the 2m Logger in Zollikofen
-
-+-----------------+-------------------------------------------+
-| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N    |
-+-----------------+-------------------------------------------+
-| Altitude:       | 552.9 a.s.l                               |
-+-----------------+-------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                 |
-|                 |                                           |
-|                 | New Logger: UTC / GMT                     |
-+-----------------+-------------------------------------------+
-| Logger Number   | 99                                        |
-+-----------------+-------------------------------------------+
-| Code grafana    | 135a449d34a1                              |
-+-----------------+-------------------------------------------+
 
 : Table 3: Metadata for the 3m Logger in Zollikofen
 
@@ -436,8 +436,10 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ```{r}
 # Boxplot new logger - reference station at Zollikofen 2m (daytime)
-box_2m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE,
-                              ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+box_2m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, 
+                              colnbr = 8, whole = FALSE,
+                              ylab = c('Temperature anomaly [K]'), 
+                              xlab = c('Hour of the Day [hourly mean]'))
 
 pdf(file = '../analysis/graphs_report/Boxplot/boxplot_day_2_zoll.pdf',
         width = 12 / 2.54, height = 10 / 2.54)
@@ -451,8 +453,10 @@ boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
 boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
 
 # Boxplot new logger - reference station at Zollikofen 3m (daytime)
-box_3m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE,
-                              ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+box_3m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref3, 
+                              colnbr = 10, whole = FALSE,
+                              ylab = c('Temperature anomaly [K]'), 
+                              xlab = c('Hour of the Day [hourly mean]'))
 
 pdf(file = '../analysis/graphs_report/Boxplot/boxplot_day_3_zoll.pdf',
         width = 12 / 2.54, height = 10 / 2.54)
@@ -522,8 +526,10 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 
 ```{r}
 # Densityplot new logger - reference station at Zollikofen 2m (daytime)
-density_2m_day <- densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, whole = FALSE,
-                    ylab = c('Density'), xlab = c('Temperature Anomaly [K]'))
+density_2m_day <- densityplot_creater(zoll_combined, Anomaly_new_log_ref2, 
+                    colnbr = 8, whole = FALSE,
+                    ylab = c('Density'), 
+                    xlab = c('Measured temperature anomalies [K]'))
 
 pdf(file = '../analysis/graphs_report/Densityplot//density_day_2_zoll.pdf',
         width = 12 / 2.54, height = 10 / 2.54)
@@ -537,8 +543,10 @@ densityplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FAL
 densityplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
 
 # Densityplot new logger - reference station at Zollikofen 3m (daytime)
-density_3m_day <- densityplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10, whole = FALSE,
-                    ylab = c('Density'), xlab = c('Temperature Anomaly [K]'))
+density_3m_day <- densityplot_creater(zoll_combined, Anomaly_new_log_ref3, 
+                    colnbr = 10, whole = FALSE,
+                    ylab = c('Density'), 
+                    xlab = c('Measured temperature anomalies [K]'))
 
 pdf(file = '../analysis/graphs_report/Densityplot//density_day_3_zoll.pdf',
         width = 12 / 2.54, height = 10 / 2.54)

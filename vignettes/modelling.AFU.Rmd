@@ -54,51 +54,51 @@ station)
 
 : Table 2: Metadata for AFU (reference station)
 
-+-----------------+-----------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
-+-----------------+-----------------------------------------+
-| Altitude:       | 552.9 a.s.l.                            |
-+-----------------+-----------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2               |
-|                 |                                         |
-|                 | New Logger: UTC / GMT                   |
-+-----------------+-----------------------------------------+
-| Logger Number:  | 98                                      |
-+-----------------+-----------------------------------------+
-| Code grafana    | 20d1b9040ad9                            |
-+-----------------+-----------------------------------------+
++----------------+----------------------------------------+
+| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
++----------------+----------------------------------------+
+| Altitude:      | 552.9 a.s.l.                           |
++----------------+----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2              |
+|                |                                        |
+|                | New Logger: UTC / GMT                  |
++----------------+----------------------------------------+
+| Logger Number: | 98                                     |
++----------------+----------------------------------------+
+| Code grafana   | 20d1b9040ad9                           |
++----------------+----------------------------------------+
 
 : Table 3: Metadata for the 2m Logger in Zollikofen
 
-+-----------------+-----------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
-+-----------------+-----------------------------------------+
-| Altitude:       | 552.9 a.s.l.                            |
-+-----------------+-----------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2               |
-|                 |                                         |
-|                 | New Logger: UTC / GMT                   |
-+-----------------+-----------------------------------------+
-| Logger Number:  | 99                                      |
-+-----------------+-----------------------------------------+
-| Code grafana    | 135a449d34a1                            |
-+-----------------+-----------------------------------------+
++----------------+----------------------------------------+
+| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
++----------------+----------------------------------------+
+| Altitude:      | 552.9 a.s.l.                           |
++----------------+----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2              |
+|                |                                        |
+|                | New Logger: UTC / GMT                  |
++----------------+----------------------------------------+
+| Logger Number: | 99                                     |
++----------------+----------------------------------------+
+| Code grafana   | 135a449d34a1                           |
++----------------+----------------------------------------+
 
 : Table 4: Metadata for the 3m Logger in Zollikofen
 
-+-----------------+------------------------------------------+
-| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
-+-----------------+------------------------------------------+
-| Altitude:       | 554.5 a.s.l.                             |
-+-----------------+------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                |
-|                 |                                          |
-|                 | New Logger: UTC / GMT                    |
-+-----------------+------------------------------------------+
-| Logger Number:  | 83                                       |
-+-----------------+------------------------------------------+
-| Code grafana    | d6e2769def35                             |
-+-----------------+------------------------------------------+
++----------------+-----------------------------------------+
+| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
++----------------+-----------------------------------------+
+| Altitude:      | 554.5 a.s.l.                            |
++----------------+-----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2               |
+|                |                                         |
+|                | New Logger: UTC / GMT                   |
++----------------+-----------------------------------------+
+| Logger Number: | 83                                      |
++----------------+-----------------------------------------+
+| Code grafana   | d6e2769def35                            |
++----------------+-----------------------------------------+
 
 : Table 5: Metadata for the 2m Logger at AFU
 
@@ -141,6 +141,14 @@ AFU <- AFU|>
          'pressure' = Luftdruck,
          'humidity' = Feuchte)|>
   select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
+```
+
+# Stepwise
+
+```{r}
+source('../Field_Course_Urban_Climate/R/stepwise/stepforward.R')
+
+multivariate.reg.model(AFU, c(1, 2))
 ```
 
 # Implementation of KNN
@@ -212,7 +220,7 @@ contains only the target (temperature) and a predictor (humidity). We
 compare our knn-model with the lm-model. We easily see that the knn
 performce better than lm-model (RSQ: 0.72 vs. 0.67, RMSE: 2.71 vs. 2.95).
 
-If we use our expanded model (model.AFU.opt.appraoch), which contains the
+If we use our expanded model (model.AFU.opt.approach), which contains the
 target (temperature) and the predictors (humidity, insolation, windspeed
 and winddirection), the performance increase massively (RSQ: 0.83 vs. 0.71,
 RMSE: 2.01 vs. 2.74). We see that especially the error is thereby lowered.
@@ -276,7 +284,7 @@ eval_model(model.AFU.lm, AFU_train, new_logger_AFU,
 Expand on all double measurements locations
 
 ```{r}
-# we read all the file names
+# we read all the file names (116 files)
 list_of_files <- list.files(path = '../Field_Course_Urban_Climate/data/data_logger_new/',
                             recursive = TRUE,
                             pattern = '\\.csv$',
@@ -300,9 +308,13 @@ logger_code <- df_metadata$`Code grafana`
 # because there are errors by reading the files, we use only the first four characters
 logger_code <- str_sub(logger_code , end = -9)
 
+logger_code
+
 # We create our own filter (with logical "or")
 own.filter <- logger_code|>
   paste(collapse = "|")
+
+own.filter
 
 # and we have a data frame which contains only locations with a double measurement
 # Now we can use group_by or a filter to analize all locations at once
@@ -339,7 +351,10 @@ df_new_loggers <- df_new_loggers|>
 
 # filter to control for-loop
 filter <- dplyr::pull(df_new_loggers|>
-  group_keys(name), name)
+                        group_by(name)|>
+                        group_keys(name))
+
+
 
 dataset = NULL
 source("../Field_Course_Urban_Climate/R/ml_functions/spatial.upscale.R")

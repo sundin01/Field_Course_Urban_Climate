@@ -73,6 +73,14 @@ ZOLL <- ZOLL|>
   select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
 ```
 
+# Stepwise regression
+
+```{r}
+source('../Field_Course_Urban_Climate/R/stepwise/stepforward.R')
+
+multivariate.reg.model(ZOLL, c(1, 2, 3))
+```
+
 # Implementation of KNN
 
 ## Split data and model training
