@@ -8,7 +8,7 @@ use_pkgs <-  c("dplyr", "tidyr", "readr", "lubridate", "stringr", "purrr",
                "conflicted", "naniar","openxlsx", "readxl", "zoo", "kableExtra",
                "naniar", "yardstick", "StreamMetabolism","data.table", "reshape",
                "xts", "gridExtra", "plyr", "colorRamps", "egg", "viridis", "expss",
-               "MASS", "moments", "ie2misc")
+               "MASS", "moments", "ie2misc", 'xtable')
 
 new_pkgs <- use_pkgs[!(use_pkgs %in% installed.packages()[, "Package"])]
 if (length(new_pkgs) > 0) install.packages(new_pkgs,repos = "http://cran.us.r-project.org")
