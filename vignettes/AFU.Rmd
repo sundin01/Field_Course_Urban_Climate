@@ -1,5 +1,5 @@
 ---
-title: "Workflow AFU"
+title: "Workflow: Performance of AFU"
 output:
   html_document:
     toc: yes
@@ -19,6 +19,8 @@ Supervisor: Prof. Dr. Stefan Brönnimann
 
 Adviser: Dr. Moritz Gubler
 
+Adviser: Nils Tinner
+
 [Do you have questions about the workflow? Contact the
 Authors:]{.underline}
 
@@ -33,29 +35,35 @@ Reference: "Amt für Umwelt (AFU)"
 
 # Introduction
 
-|              |                                         |
-|--------------|-----------------------------------------|
-| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
-| Altitude:    | 554.5 a.s.l.                            |
-| Time:        | UTC-2 / GMT-2                           |
-| Source:      | AFU (Amt für Umwelt der Stadt Bern)     |
+We use the following automatic Weather Station (AWS) at AFU and the low
+cost device (LCD) at AFU.
+
++-----------------+------------------------------------------------------+
+| Coordinates:    | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N              |
++-----------------+------------------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                                         |
++-----------------+------------------------------------------------------+
+| Time:           | UTC-2 / GMT-2                                        |
++-----------------+------------------------------------------------------+
+| Source:         | AFU (Amt für Umwelt der Stadt Bern)                  |
++-----------------+------------------------------------------------------+
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+-----------------+------------------------------------------+
-| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
-+-----------------+------------------------------------------+
-| Altitude:       | 554.5 a.s.l.                             |
-+-----------------+------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                |
-|                 |                                          |
-|                 | New Logger: UTC / GMT                    |
-+-----------------+------------------------------------------+
-| Logger Number:  | 83                                       |
-+-----------------+------------------------------------------+
-| Code grafana    | d6e2769def35                             |
-+-----------------+------------------------------------------+
++-----------------+-------------------------------------------------------+
+| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N               |
++-----------------+-------------------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                                          |
++-----------------+-------------------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                             |
+|                 |                                                       |
+|                 | New Logger: UTC / GMT                                 |
++-----------------+-------------------------------------------------------+
+| Logger Number:  | 83                                                    |
++-----------------+-------------------------------------------------------+
+| Code grafana    | d6e2769def35                                          |
++-----------------+-------------------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger at AFU
 
@@ -83,13 +91,14 @@ conflicts_prefer(lubridate::hour)
 conflicts_prefer(recipes::fixed)
 ```
 
-We read all the data we need:
+We read all the data we need. For AFU, we removed a description and some
+sub-headers. But you find the original source in the folder "data"
 
 ```{r read_the_files, warning=FALSE, error=FALSE, message=FALSE}
 # We read a file with data from the old loggers
 old_logger <- read_xlsx("../data/data_logger_old.xlsx")
 
-# We read data from the new logger in front of AFU (2m)
+# We read data from the new logger in front of AFU (2m) (with the "code grafana")
 new_logger_AFU <- read.csv("../data/data_logger_new/d6e2769def35.csv")
 
 # We read data from the station in front of AFU (2m)
@@ -99,9 +108,12 @@ AFU_ref <- read_xlsx("../data/data_REF_AFU_new.xlsx")
 # Data quality
 
 Now we need a first impression about the data. Are there any missing values
-and if yes, where are they?
+and if yes, where are they? Does it matter?
 
 ## Missing Values
+
+We use a function which shows as how many NAs contain a certain column. We
+do that for all three data sets.
 
 ```{r handle_missing_values,  warning=FALSE, error=FALSE, message=FALSE}
 # Load the function to handle NAs
@@ -120,18 +132,19 @@ visualize.na.values.without.groups(old_logger)
 ## Time-shift
 
 Because not all data has the same source we have to make sure all data
-works in the same time zone. For that we use lubridate which gives all the
-data a proper time- and date stamp. The old loggers works with CEST
-(Central Europe Summer Time). We define this time zone for the loggers
-(CEST = GMT -2). We do the same for the reference station due to the same
-reasons as for the old loggers. The new loggers works on UTC and therefore,
-we define it as GMT. If we defined time zones, R will do the corrections
-automatically.
+works in the same time zone. For that we use the package "lubridate" which
+gives all the data a proper time and date stamp. The old LCD works with
+CEST (Central Europe Summer Time). We define this time zone with CEST = GMT
+-2. We do the same for the AWS due to the same reasons as for the old LCD
+(AWS works on CEST as well). The new LCD works on UTC and therefore, we
+define it as GMT. If we defined time zones, R will do the corrections
+automatically (And it does not matter if we call that UTC or CEST).
 
-Further, it is easier to work with one data frame. That is why me join all
+Further, it is easier to work with one data frame. That is why we join all
 three data frames into one. We make sure that we only use data if the date
 and time occur in all three data frames. For that, we round the time to the
-next 10 minutes.
+next 10 minutes. After that, we use inner_join and control the merge with
+the time column.
 
 ```{r time_shift, error=FALSE, message=FALSE, warning=FALSE}
 #First, change format of time and date for the old logger in front of AFU
@@ -212,18 +225,20 @@ AFU_combined <- AFU_combined|>
 
 We want a "feeling" for our data. Are there outliers? If yes, why there? To
 answer those questions we aggregate the 10 minute resolution to a 2 hour
-resolution and plot them. We can see that most of the anamolies are in a
+resolution and plot them. We can see that most of the anomalies are in a
 [-3, 3] °C range. But there also are outliers up to about 20°C. Maybe there
-were a problem with the station.
+were a problem with the AWS or the LCD.
 
 We filter our data to determine those "extreme-outliers" because it does
-not seems like a expected variability. In the data we see, that the
-reference station seems to be broken down. The station repeatedly measures
-the same value, followed by NAs. The station probably got stuck. The second
-peak is about 5-6 °C. Because this event occurred only 2 hours after the
-station failure, we assume that this was also due to problems with the
-measuring station. Therefore, we exclude this part of the data from our
-analysis.
+not seems like a expected variability. In the data we see, that the AWS
+seems to be broken down. The station repeatedly measures the same value,
+followed by NAs. The station probably got stuck. The second peak is about
+5-6 °C. Because this event occurred only 2 hours after the station failure,
+we assume that this was also due to problems with the measuring station.
+Therefore, we exclude this part of the data from our analysis.
+
+At least, we write our new data frame in a CSV file because maybe we will
+use it later and in another context.
 
 ```{r suspected_data, warning=FALSE, error=FALSE, message=FALSE}
 # We create a column-plot of the anomalies. 
@@ -297,9 +312,11 @@ for the plots. After that, we use box-plot, density-plots and line-graphs
 to visualize the performance of the loggers. After that, we calculate the
 main statistic parameters and the errors. Because the problems are probably
 higher due to solar radiation through the day, we differentiate between 24h
-(whole day), 6-22 (day-time) and 22-6 (night-time).
+(entire day), 6-22 (day-time) and 22-6 (night-time).
 
 ## Data Split
+
+We split our data in daytime and night-time
 
 ```{r split_data }
 AFU_day <- AFU_combined|>
@@ -320,6 +337,23 @@ AFU_night <- AFU_combined|>
 Here, we create function for the plots (line-plot, box-plot and
 density-plot. We add ± standard deviation and a dot-dashed zero line
 because we want to determine whether the data is accurate or and precise.
+We use one function to create two different plots. All labs, title and
+subtitle are dynamically.
+
+You need a data set ,
+
+Default --\> Line plot
+
+Set whole = FALSE --\> scatter plot
+
+The second function is very dynamic:
+
+1.  Chose boxplot or density plot:
+    1.  Default: you get 24 hours
+    2.  set whole = False --\> you get day-time
+    3.  set whole & day = false --\> you get night time
+
+Here, you finde the function for the Line- and scatter plot
 
 ```{r function, warning=FALSE, error=FALSE, message=FALSE}
 source("../R/general/plot.functions.R")
@@ -343,6 +377,8 @@ overview_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8)
 
 ## Scatter-Plot
 
+Whole day
+
 ```{r scatter_plot}
 # Scatter-plot new logger - reference station at AFU
 overview_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
@@ -353,6 +389,8 @@ overview_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALS
 ```
 
 ## Box-plot
+
+Whole day (default)
 
 ```{r boxplot, warning=FALSE, error=FALSE, message=FALSE}
 # Boxplot new logger - reference station at AFU
@@ -365,43 +403,51 @@ boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7)
 boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8)
 ```
 
-Day-time
+Day-time (set whole = FALSE)
 
 ```{r boxplot_day}
 # Boxplot new logger - reference station at AFU (daytime)
 boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
 
-# Boxplot old logger - reference station at AFU (daytime)
-box_2m_day <- boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE,
-                              ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
-
 # Boxplot new logger - old logger at AFU (daytime)
 boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE)
 
+
+
+
+# Boxplot old logger - reference station at AFU (daytime)
+box_2m_day <- boxplot_creater(AFU_combined, 
+                              Anomaly_old_log_ref, colnbr = 7, whole = FALSE,
+                              ylab = c('Temperature anomaly [K]'), 
+                              xlab = c('Hour of the Day [hourly mean]'))
+
+
+
 pdf(file = '../analysis/graphs_report/Boxplot/boxplot_day_2_afu.pdf',
-        width = 12 / 2.54, height = 10 / 2.54)
+        width = 8, height = 5)
 box_2m_day
 dev.off
 ```
 
-Night-time
-
-add lines (gap)
+Night-time (set whole = FALSE & day = FALSE)
 
 ```{r boxplot_night}
 # Boxplot new logger - reference station at AFU (nighttime)
-boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE, day = FALSE)
+boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, 
+                whole = FALSE, day = FALSE)
 
 # Boxplot old logger - reference station at AFU (nighttime)
-boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE, day = FALSE)
+boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7,
+                whole = FALSE, day = FALSE)
 
 # Boxplot new logger - old logger at AFU (nighttime)
-boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE, day = FALSE)
+boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, 
+                whole = FALSE, day = FALSE)
 ```
 
 ## Density-plot
 
-Whole day
+Whole day (default)
 
 ```{r density-plot, warning=FALSE, error=FALSE, message=FALSE}
 
@@ -415,27 +461,32 @@ densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7)
 densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8)
 ```
 
-Day-time
+Day-time (set whole = FALSE)
 
 ```{r density_day}
 # Densityplot new logger - reference station at AFU (daytime)
-densityplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE, title = c("Hallo"), 
-                    subtitle = c("23.3.4567"), xlab = c("x-Achse"), ylab = c("y-Achse"))
+densityplot_creater(AFU_combined, Anomaly_new_log_ref, 
+                    colnbr = 6, whole = FALSE, 
+                    title = c("Hallo"), subtitle = c("23.3.4567"), 
+                    xlab = c("x-Achse"), ylab = c("y-Achse"))
 
 # Densityplot old logger - reference station at AFU (daytime)
-density_2m_day <- densityplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE,
-                                      ylab = c('Density'), xlab = c('Temperature Anomaly [K]'))
+density_2m_day <- densityplot_creater(AFU_combined, Anomaly_old_log_ref, 
+                  colnbr = 7, whole = FALSE,
+                  ylab = c('Density'), 
+                  xlab = c('Measured temperature anomalies [K]'))
 
-pdf(file = '../analysis/graphs_report/Densityplot//density_day_2_afu.pdf',
+pdf(file = '../analysis/graphs_report/Densityplot/density_day_2_afu.pdf',
         width = 12 / 2.54, height = 10 / 2.54)
 density_2m_day
 dev.off
 
 # Densityplot new logger - old logger at AFU (daytime)
-densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = FALSE)
+densityplot_creater(AFU_combined, Anomaly_new_log_old_log, 
+                    colnbr = 8, whole = FALSE)
 ```
 
-Night-time
+Night-time (set whole = FALSE & day = FALSE)
 
 ```{r density_night}
 # Densityplot new logger - reference station at AFU (nighttime)
@@ -451,6 +502,10 @@ densityplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8, whole = F
 # Statistics
 
 ## Errors
+
+It is very complicate to calculate because the RMSE and MAE from the
+Metrics packages do not accept NAs. So we have to write a function
+manually...
 
 ```{r errors}
 NAMES <- c('24h, new-ref', '24h, old-ref', 
@@ -501,13 +556,17 @@ BIAS <- c(round((sum(AFU_combined$temp_new_logger-AFU_combined$temp_ref, na.rm =
           round((sum(AFU_night$temp_new_logger - AFU_night$temp_old_logger, na.rm = TRUE)/
                    length(AFU_night$temp_old_logger)), digits = 3))
 
-test <- cbind(NAMES, RMSE, MAE, BIAS)
-knitr::kable(test, caption = 'Table 1: Overview about error-metrics')|>
+# We want a LATEX table --> we can add it in our overleaf project!
+table <- cbind(NAMES, RMSE, MAE, BIAS)
+knitr::kable(table, caption = 'Table 1: Overview about error-metrics')|>
     kableExtra::kable_classic_2(full_width = T)
   
 ```
 
 ## Main Parameters
+
+We calculate the main statistic parameter sfor the entire day (24h),
+daytime and nighttime. At the end, we also create a LATEX table
 
 ```{r statistics}
 # Calculate the main statistic parameters
@@ -535,7 +594,7 @@ afu_24 <- AFU_combined|>
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
          skewness = round(skewness(values, na.rm = TRUE), digits = 3))
-##########################################################################################################
+###############################################################################################
 afu_daytime <- AFU_combined|>
   rename(new_ref = `Anomaly_new_log_ref`,
          old_ref = `Anomaly_old_log_ref`,
@@ -561,7 +620,7 @@ afu_daytime <- AFU_combined|>
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
          skewness = round(skewness(values, na.rm = TRUE), digits = 3))
-##########################################################################################################
+###############################################################################################
 afu_nighttime <- AFU_combined|>
   rename(new_ref = `Anomaly_new_log_ref`,
          old_ref = `Anomaly_old_log_ref`,
@@ -587,9 +646,9 @@ afu_nighttime <- AFU_combined|>
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
          skewness = round(skewness(values, na.rm = TRUE), digits = 3))
-##########################################################################################################
+###############################################################################################
 # generate latex code
-xtable(afu_24, align = c('l', rep('c', times = 11)))
-xtable(afu_daytime, align = c('l', rep('c', times = 11)))
-xtable(afu_nighttime, align = c('l', rep('c', times = 11)))
+xtable::xtable(afu_24, align = c('l', rep('c', times = 11)))
+xtable::xtable(afu_daytime, align = c('l', rep('c', times = 11)))
+xtable::xtable(afu_nighttime, align = c('l', rep('c', times = 11)))
 ```
