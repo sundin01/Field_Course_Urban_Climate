@@ -19,6 +19,8 @@ Supervisor: Prof. Dr. Stefan Brönnimann
 
 Adviser: Dr. Moritz Gubler
 
+Adviser: Nils Tinner
+
 Do you have questions about the workflow? Contact the Authors:
 
 Bigler Patrick
@@ -31,19 +33,9 @@ Markella Bouchoriku
 ([markella.bouchoriku\@students.unibe.ch](mailto:markella.bouchoriku@students.unibe.ch){.email}
 )
 
-Reference: "modelling"
+Reference: "modelling AFU"
 
 # Introduction
-
-|              |                   |
-|--------------|-------------------|
-| Coordinates: | 7°28' E, 46°59' N |
-| Altitude:    | 552 a.s.l.        |
-| Time:        | UTC / GMT         |
-| Source:      | Meteo Schweiz     |
-
-: Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
-station)
 
 |              |                                         |
 |--------------|-----------------------------------------|
@@ -52,59 +44,33 @@ station)
 | Time:        | UTC-2 / GMT-2                           |
 | Source:      | AFU (Amt für Umwelt der Stadt Bern)     |
 
-: Table 2: Metadata for AFU (reference station)
+: Table 1: Metadata for AFU (reference station)
 
-+----------------+----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                           |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number: | 98                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 20d1b9040ad9                           |
-+----------------+----------------------------------------+
++------------------------------------+-----------------------------------+
+| Altitude:                          | 7° 27' 45,252'' E ; 46.° 57'      |
+|                                    | 47,196'' N                        |
++------------------------------------+-----------------------------------+
+| Altitude:                          | 554.5 a.s.l.                      |
++------------------------------------+-----------------------------------+
+| Time format:                       | Old logger: UTC-2 / GMT-2         |
+|                                    |                                   |
+|                                    | New Logger: UTC / GMT             |
++------------------------------------+-----------------------------------+
+| Logger Number:                     | 83                                |
++------------------------------------+-----------------------------------+
+| Code grafana                       | d6e2769def35                      |
++------------------------------------+-----------------------------------+
 
-: Table 3: Metadata for the 2m Logger in Zollikofen
-
-+----------------+----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                           |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number: | 99                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 135a449d34a1                           |
-+----------------+----------------------------------------+
-
-: Table 4: Metadata for the 3m Logger in Zollikofen
-
-+----------------+-----------------------------------------+
-| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
-+----------------+-----------------------------------------+
-| Altitude:      | 554.5 a.s.l.                            |
-+----------------+-----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2               |
-|                |                                         |
-|                | New Logger: UTC / GMT                   |
-+----------------+-----------------------------------------+
-| Logger Number: | 83                                      |
-+----------------+-----------------------------------------+
-| Code grafana   | d6e2769def35                            |
-+----------------+-----------------------------------------+
-
-: Table 5: Metadata for the 2m Logger at AFU
+: Table 2: Metadata for the 2m Logger at AFU
 
 # Preparation
 
 ## Read packages
+
+First, we install and / or load packages we need. Important is the package
+"conflicted". It enables us to chose if different functions have the same
+call but do not make the same thing (a function in a certain package can
+have the same name as a function from another package).
 
 ```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
 # install and activate all packages we need
@@ -116,14 +82,26 @@ conflicts_prefer(dplyr::select)
 conflicts_prefer(dplyr::mutate)
 conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::rename)
+conflicts_prefer(Metrics::rmse)
+conflicts_prefer(Metrics::mae)
+conflicts_prefer(lubridate::stamp)
+conflicts_prefer(lubridate::hour)
+conflicts_prefer(recipes::fixed)
 ```
 
 ## Read files
+
+We read all the data we need. For AFU, we removed a description and some
+sub-headers. But you find the original source in the folder "data"
 
 ```{r read_the_data, warning=FALSE, error=FALSE, message=FALSE}
 # We read the reference data from AFU
 AFU <- read_xlsx("../Field_Course_Urban_Climate/data/data_REF_AFU_new.xlsx")
 ```
+
+## Time and date
+
+We define CEST as our time and use "lubridate" to define a date.
 
 ```{r file-preparation, error=FALSE, warning=FALSE, message=FALSE}
 # We change format of time and date for reference station in front of AFU
@@ -145,6 +123,9 @@ AFU <- AFU|>
 
 # Stepwise
 
+we create a stepwise regression because we want to know which model is
+properly the best fit. The model with the lowest AIC will be preferred.
+
 ```{r}
 source('../Field_Course_Urban_Climate/R/stepwise/stepforward.R')
 
@@ -155,18 +136,24 @@ multivariate.reg.model(AFU, c(1, 2))
 
 ## Split data and model training
 
-```{r calculate-AFU-model, warning=FALSE, error=FALSE, message=FALSE}
-# We load our functions for simple model
-source("../Field_Course_Urban_Climate/R/ml_functions/knn.evaluation.R")
-source("../Field_Course_Urban_Climate/R/ml_functions/lm.and.knn.model.R")
-source("../Field_Course_Urban_Climate/R/ml_functions/knn_cv_optimizer.R")
-source("../Field_Course_Urban_Climate/R/ml_functions/knn.cv.model.creater.R")
+-   Split data
 
+-   Training
+
+-   optimaze k (overfit vs. underfit)
+
+### AFU: expanded-model
+
+First, we calculate a model with all our meteorological variable (humidity,
+insolation, wind speed, wind direction). We call it our KNN-expanded model.
+
+```{r calculate-AFU-model, warning=FALSE, error=FALSE, message=FALSE}
 # We load our functions for expanded model
 source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.evaluation.approach.R")
 source("../Field_Course_Urban_Climate/R/ml_functions.approach/lm.and.knn.model.approach.R")
 source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn_cv_optimizer.approach.R")
 source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.cv.model.creater.approach.R")
+
 # For reproducibility
 set.seed(123)  
 
@@ -188,11 +175,18 @@ model.AFU.opt.approach <- knn.cv.model.a(AFU_train_approach, 6)
 model.AFU.lm.approach <- lm.model.a(AFU_train_approach)
 ```
 
-## AFU Simple
+### AFU:  Simple-model
 
-We do the same for AFU...
+We calculate a model with the target 'temperature' and humidity as
+predictor.
 
 ```{r warning=FALSE, error=FALSE, message=FALSE }
+# We load our functions for simple model
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.evaluation.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/lm.and.knn.model.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn_cv_optimizer.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.cv.model.creater.R")
+
 # For reproducibility (pseudo-random)
 set.seed(123)  
 # Split 70 % to 30 % 
@@ -281,7 +275,10 @@ eval_model(model.AFU.lm, AFU_train, new_logger_AFU,
 
 ## Read multiple csv-files at once
 
-Expand on all double measurements locations
+We exclude LCD 102 (Vordere Länggasse) and LCD 13 (Egelsee) because there
+are not such files in the folder. We also exclude LCD 52 (Umland Bümpliz)
+because the LCD is not in use. That means we analyse only 20/23
+locations...
 
 ```{r}
 # we read all the file names (116 files)
@@ -390,6 +387,8 @@ overview <- data.frame('Logger-code' = filter,
 # generate latex code
 xtable(overview, align = c('l','l', 'c', 'c', 'c', 'c', 'c', 'c'))
 ```
+
+## Evaluation of spatial upscale
 
 ```{r}
 # create a for loop --> it will create 40 plots!!

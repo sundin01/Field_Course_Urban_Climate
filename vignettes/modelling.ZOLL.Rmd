@@ -31,9 +31,58 @@ Markella Bouchoriku (markella.bouchoriku\@students.unibe.ch )
 
 Reference: "Spatial Upscaling"
 
+# Introduction
+
+|              |                   |
+|--------------|-------------------|
+| Coordinates: | 7°28' E, 46°59' N |
+| Altitude:    | 552 a.s.l.        |
+| Time:        | UTC / GMT         |
+| Source:      | Meteo Schweiz     |
+
+: Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
+station)
+
++----------------+----------------------------------------+
+| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
++----------------+----------------------------------------+
+| Altitude:      | 552.9 a.s.l.                           |
++----------------+----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2              |
+|                |                                        |
+|                | New Logger: UTC / GMT                  |
++----------------+----------------------------------------+
+| Logger Number: | 98                                     |
++----------------+----------------------------------------+
+| Code grafana   | 20d1b9040ad9                           |
++----------------+----------------------------------------+
+
+: Table 2: Metadata for the 2m Logger in Zollikofen
+
++----------------+----------------------------------------+
+| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
++----------------+----------------------------------------+
+| Altitude:      | 552.9 a.s.l.                           |
++----------------+----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2              |
+|                |                                        |
+|                | New Logger: UTC / GMT                  |
++----------------+----------------------------------------+
+| Logger Number: | 99                                     |
++----------------+----------------------------------------+
+| Code grafana   | 135a449d34a1                           |
++----------------+----------------------------------------+
+
+: Table 3: Metadata for the 3m Logger in Zollikofen
+
 # Preparation
 
 ## Read packages
+
+First, we install and / or load packages we need. Important is the package
+"conflicted". It enables us to chose if different functions have the same
+call but do not make the same thing (a function in a certain package can
+have the same name as a function from another package).
 
 ```{r read_the_packages, warning=FALSE, error=FALSE, message=FALSE}
 # install and activate all packages we need
@@ -54,9 +103,19 @@ conflicts_prefer(recipes::fixed)
 
 ## Read data
 
+We read all the data we need:
+
 ```{r read_the_data, warning=FALSE, error=FALSE, message=FALSE}
 # We read the reference data from Zollikofen
 ZOLL <- read.csv2("../Field_Course_Urban_Climate/data/data_REF_ZOLL.original.csv")
+
+```
+
+## Time and date
+
+We define CEST as our time and use "lubridate" to define a date.
+
+```{r time_and_date, warning=FALSE, error=FALSE, message=FALSE}
 
 # We change format of time and date for reference station in Zollikofen
 ZOLL$time <- strptime(ZOLL$time, format="%Y%m%d%H%M")
@@ -75,6 +134,9 @@ ZOLL <- ZOLL|>
 
 # Stepwise regression
 
+we create a stepwise regression because we want to know which model is
+properly the best fit. The model with the lowest AIC will be preferred.
+
 ```{r}
 source('../Field_Course_Urban_Climate/R/stepwise/stepforward.R')
 
@@ -91,32 +153,12 @@ multivariate.reg.model(ZOLL, c(1, 2, 3))
 
 -   optimaze k (overfit vs. underfit)
 
+### Zollikofen: expanded-model
+
+First, we calculate a model with all our meteorological variable (humidity,
+insolation, wind speed, wind direction). We call it our KNN-expanded model.
+
 ```{r split_the_data, warning=FALSE, error=FALSE, message=FALSE }
-# We load our functions
-source("../Field_Course_Urban_Climate/R/ml_functions/knn.evaluation.R")
-source("../Field_Course_Urban_Climate/R/ml_functions/lm.and.knn.model.R")
-source("../Field_Course_Urban_Climate/R/ml_functions/knn_cv_optimizer.R")
-source("../Field_Course_Urban_Climate/R/ml_functions/knn.cv.model.creater.R")
-
-# For reproducibility (pseudo random choice)
-set.seed(123)  
-
-# Split 70 % to 30 % 
-split_zoll <- rsample::initial_split(ZOLL, prop = 0.7)
-# We create a training set and a test set
-ZOLL_train <- rsample::training(split_zoll)
-ZOLL_test <- rsample::testing(split_zoll)
-
-# We optimaze the hyperparameter k --> k=170
-my.sequence <-c(1,2,3,4,5, seq(100, to = 200, by = 10))
-parameter.extracter.knn.cv(my.sequence, ZOLL_train, ZOLL_test , 10)
-
-# We calculate a KNN model
-model.ZOLL.opt <- knn.cv.model(ZOLL_train, 170)
-
-# We calculate a lm-model (to comapre with)
-model.ZOLL.lm <- lm.model(ZOLL_train)
-
 # We load our functions
 source("../Field_Course_Urban_Climate/R/ml_functions.approach/knn.evaluation.approach.R")
 source("../Field_Course_Urban_Climate/R/ml_functions.approach/lm.and.knn.model.approach.R")
@@ -142,6 +184,38 @@ model.ZOLL.opt.appraoch <- knn.cv.model.a(ZOLL_train_approach, 2)
 
 # We calculate a lm-model (to comapre with)
 model.ZOLL.lm.approach <- lm.model.a(ZOLL_train_approach)
+```
+
+### Zollikofen: Simple-model
+
+We calculate a model with the target 'temperature' and humidity as
+predictor.
+
+```{r}
+# We load our functions
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.evaluation.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/lm.and.knn.model.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn_cv_optimizer.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/knn.cv.model.creater.R")
+
+# For reproducibility (pseudo random choice)
+set.seed(123)  
+
+# Split 70 % to 30 % 
+split_zoll <- rsample::initial_split(ZOLL, prop = 0.7)
+# We create a training set and a test set
+ZOLL_train <- rsample::training(split_zoll)
+ZOLL_test <- rsample::testing(split_zoll)
+
+# We optimaze the hyperparameter k --> k=170
+my.sequence <-c(1,2,3,4,5, seq(100, to = 200, by = 10))
+parameter.extracter.knn.cv(my.sequence, ZOLL_train, ZOLL_test , 10)
+
+# We calculate a KNN model
+model.ZOLL.opt <- knn.cv.model(ZOLL_train, 170)
+
+# We calculate a lm-model (to comapre with)
+model.ZOLL.lm <- lm.model(ZOLL_train)
 ```
 
 # Evaluation
@@ -183,7 +257,7 @@ eval_model(model.ZOLL.lm.approach, ZOLL_train_approach, ZOLL_test_approach,
            c("Zoll: lm-model-expanded"), c("Zoll: lm-model-expanded"))
 ```
 
-### Zollikofen 2m Logger
+## Zollikofen 2m Logger
 
 We evaluate the 2m logger in Zollikofen
 
@@ -212,7 +286,7 @@ eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_2,
            c("Zoll: lm-model"), c("Zoll: lm-model"))
 ```
 
-### Zollikofen 3m Logger
+## Zollikofen 3m Logger
 
 And we evaluate the 3m logger in Zollikofen
 
@@ -246,6 +320,11 @@ eval_model(model.ZOLL.lm, ZOLL_train, new_logger_zoll_3,
 
 We read multiple csv-files at once
 
+We exclude LCD 102 (Vordere Länggasse) and LCD 13 (Egelsee) because there
+are not such files in the folder. We also exclude LCD 52 (Umland Bümpliz)
+because the LCD is not in use. That means we analyse only 20/23
+locations...
+
 ```{r read-multiple-csv-files, warning=FALSE, error=FALSE, message=FALSE}
 # we read all the file names
 list_of_files <- list.files(path = '../Field_Course_Urban_Climate/data/data_logger_new/',
@@ -255,7 +334,6 @@ list_of_files <- list.files(path = '../Field_Course_Urban_Climate/data/data_logg
 
 # We save them in a data frame
 df_new_loggers <- readr::read_csv(list_of_files, id = "file_name")
-
 
 # We need only double measurements --> create a filter
 df_metadata <- read_xlsx("../Field_Course_Urban_Climate/data/metadata_network_2023.xlsx")
@@ -286,6 +364,8 @@ df_new_loggers <- df_new_loggers |>
 
 ### Control-Plot
 
+It is only a control plot. Now we know that we work with 20 LCDs...
+
 ```{r control_plot, warning=FALSE, error=FALSE, message=FALSE}
 # We create a control-plot to check wheter we have 22 locations
 df_new_loggers|>
@@ -295,37 +375,62 @@ df_new_loggers|>
   theme_light()
 ```
 
-## Modelling
-
-### Regression
-
-But it is not suitable...
-
-```{r regression, warning=FALSE, error=FALSE, message=FALSE}
-# regression time vs. temperatur (which is probably nonsense)
-df_new_loggers|>
-  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
-  group_by(aggregate_hourly)|>
-  drop_na()|>
-  ggplot(aes(x = humidity, y =temperature))+
-  geom_point()+
-  geom_smooth(formula = y~x, method = 'lm')+
-  stat_poly_eq(use_label('R2'))+
-  facet_wrap(~name)
-
-# regression humidity vs. temperature
-df_new_loggers|>
-  mutate(aggregate_hourly = lubridate::round_date(time, "60 minutes"))|>
-  group_by(aggregate_hourly)|>
-  drop_na()|>
-  ggplot(aes(x = time, y =temperature))+
-  geom_point()+
-  geom_smooth(formula = y~x, method = 'lm')+
-  stat_poly_eq(use_label('R2'))+
-  facet_wrap(~name)
-```
+# Modelling
 
 ## KNN-models and lm-models for all 20 locations at once
+
+```{r}
+# We change format of time and date for reference station in Zollikofen
+df_new_loggers$time <- strptime(df_new_loggers$time , format = "%Y-%m-%d %H:%M")
+df_new_loggers$time <- as.POSIXct(df_new_loggers$time, tz = "ETC/GMT-2")
+attr(df_new_loggers$time, "tzone")
+
+df_new_loggers <- df_new_loggers|>
+  mutate(time = lubridate::round_date(time,"10 minutes"))
+
+# filter to control for-loop
+filter <- dplyr::pull(df_new_loggers|>
+                        group_by(name)|>
+                        group_keys(name))
+
+
+
+dataset = NULL
+source("../Field_Course_Urban_Climate/R/ml_functions/spatial.upscale.R")
+source("../Field_Course_Urban_Climate/R/ml_functions/metric_extracter.R")
+
+# define vectors
+rmse_test_knn <- NULL
+rsq_test_knn <- NULL
+bias_test_knn <- NULL
+rmse_test_lm <- NULL
+rsq_test_lm <- NULL
+bias_test_lm <- NULL
+# for loop to extract metrics
+for (i in filter){
+  # filter after logger code
+  df_temporary <- subset(df_new_loggers, name == i)
+  # create a temporare data frame
+  rmse_test_knn <- c(rmse_test_knn, rmse_extracter(model.ZOLL.opt, ZOLL_train, df_temporary))
+  rsq_test_knn <- c(rsq_test_knn, rsq_extracter(model.ZOLL.opt, ZOLL_train, df_temporary))
+  bias_test_knn <- c(bias_test_knn, bias_extracter(model.ZOLL.opt, ZOLL_train, df_temporary))
+  rmse_test_lm <- c(rmse_test_lm, rmse_extracter(model.ZOLL.lm, ZOLL_train, df_temporary))
+  rsq_test_lm <- c(rsq_test_lm, rsq_extracter(model.ZOLL.lm, ZOLL_train, df_temporary))
+  bias_test_lm <- c(bias_test_lm, bias_extracter(model.ZOLL.lm, ZOLL_train, df_temporary))
+}
+
+overview <- data.frame('Logger-code' = filter,
+                       'RSME KNN' = rmse_test_knn,
+                       'RSQ KNN' = rsq_test_knn ,
+                       'Bias KNN' = bias_test_knn,
+                       'RSME lm' = rmse_test_lm,
+                       'RSQ lm' = rsq_test_lm,
+                       'Bias lm' = bias_test_lm)
+# generate latex code
+xtable(overview, align = c('l','l', 'c', 'c', 'c', 'c', 'c', 'c'))
+```
+
+## Evaluation of spatial upscale
 
 ```{r}
 # We change format of time and date for reference station in Zollikofen
@@ -355,5 +460,4 @@ for (i in filter){
   print(knn)
   print(lm)
 }
-dataset
 ```
