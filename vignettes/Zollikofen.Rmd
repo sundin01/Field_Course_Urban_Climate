@@ -24,6 +24,8 @@ Supervisor: Prof. Dr. Stefan Brönnimann
 
 Adviser: Dr. Moritz Gubler
 
+Adviser: Nils Tinner
+
 [Do you have questions about the workflow? Contact the
 Authors:]{.underline}
 
@@ -38,50 +40,52 @@ Reference: "Zollikofen"
 
 # Introduction
 
-+-----------------+--------------------------------------------+
-| Coordinates:    | 7°28' E, 46°59' N                          |
-+-----------------+--------------------------------------------+
-| Altitude:       | 552 a.s.l.                                 |
-+-----------------+--------------------------------------------+
-| Time:           | UTC / GMT                                  |
-+-----------------+--------------------------------------------+
-| Source:         | Meteo Schweiz                              |
-+-----------------+--------------------------------------------+
+We use the following automatic Weather Station (AWS) at Zollikofen and the
+low cost device (LCD) at 2m and 3m (in Zollikofen).
 
-: Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
-station)
++-----------------+-------------------------------------------------------+
+| Coordinates:    | 7°28' E, 46°59' N                                     |
++-----------------+-------------------------------------------------------+
+| Altitude:       | 552 a.s.l.                                            |
++-----------------+-------------------------------------------------------+
+| Time:           | UTC / GMT                                             |
++-----------------+-------------------------------------------------------+
+| Source:         | Meteo Schweiz                                         |
++-----------------+-------------------------------------------------------+
 
-+-----------------+---------------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N      |
-+-----------------+---------------------------------------------+
-| Altitude:       | 552.9 a.s.l.                                |
-+-----------------+---------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                   |
-|                 |                                             |
-|                 | New Logger: UTC / GMT                       |
-+-----------------+---------------------------------------------+
-| Logger Number:  | 98                                          |
-+-----------------+---------------------------------------------+
-| Code grafana    | 20d1b9040ad9                                |
-+-----------------+---------------------------------------------+
+: Table 1: Metadata for the MeteoSchweiz station in Zollikofen (AWS)
 
-: Table 2: Metadata for the 2m Logger in Zollikofen
++-----------------+------------------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N               |
++-----------------+------------------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                                         |
++-----------------+------------------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                            |
+|                 |                                                      |
+|                 | New Logger: UTC / GMT                                |
++-----------------+------------------------------------------------------+
+| Logger Number:  | 98                                                   |
++-----------------+------------------------------------------------------+
+| Code grafana    | 20d1b9040ad9                                         |
++-----------------+------------------------------------------------------+
 
-+-----------------+--------------------------------------------+
-| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N     |
-+-----------------+--------------------------------------------+
-| Altitude:       | 552.9 a.s.l                                |
-+-----------------+--------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                  |
-|                 |                                            |
-|                 | New Logger: UTC / GMT                      |
-+-----------------+--------------------------------------------+
-| Logger Number   | 99                                         |
-+-----------------+--------------------------------------------+
-| Code grafana    | 135a449d34a1                               |
-+-----------------+--------------------------------------------+
+: Table 2: Metadata for the 2m LCD in Zollikofen
 
-: Table 3: Metadata for the 3m Logger in Zollikofen
++-----------------+------------------------------------------------------+
+| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N               |
++-----------------+------------------------------------------------------+
+| Altitude:       | 552.9 a.s.l                                          |
++-----------------+------------------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                            |
+|                 |                                                      |
+|                 | New Logger: UTC / GMT                                |
++-----------------+------------------------------------------------------+
+| Logger Number   | 99                                                   |
++-----------------+------------------------------------------------------+
+| Code grafana    | 135a449d34a1                                         |
++-----------------+------------------------------------------------------+
+
+: Table 3: Metadata for the 3m LCD in Zollikofen
 
 # Preparation
 
@@ -126,12 +130,12 @@ new_logger_zoll_3 <- read.csv("../data/data_logger_new/135a449d34a1.csv")
 # Data quality
 
 Now we need a first impression about the data. Are there any missing values
-and if yes, where are they?
+and if yes, where are they? Does it matter?
 
 ## Missing Values
 
-The following code-chunk use a function to show us, whether there are and
-where the NAs are.
+We use a function which shows as how many NAs contain a certain column. We
+do that for all three data sets.
 
 ```{r visualize-missing-values, warning=FALSE, error=FALSE, message=FALSE}
 # Load the function to handle NAs
@@ -153,18 +157,19 @@ visualize.na.values.without.groups(old_logger)
 ## Time-shift
 
 Because not all data has the same source we have to make sure all data
-works in the same time zone. For that we use "lubridate" which gives all
-the data a proper time- and date stamp. The old loggers works with CEST
-(Central Europe Summer Time). We define this time zone for the loggers
-(CEST = GMT -2). We do the same for the reference station due to the same
-reasons as for the old loggers. The new loggers works on UTC and therefore,
-we define it as GMT. If we defined time zones, R will do the corrections
-automatically.
+works in the same time zone. For that we use the package "lubridate" which
+gives all the data a proper time and date stamp. The old LCD works with
+CEST (Central Europe Summer Time). We define this time zone with CEST = GMT
+-2. We do the same for the AWS due to the same reasons as for the old LCD
+(AWS works on CEST as well). The new LCD works on UTC and therefore, we
+define it as GMT. If we defined time zones, R will do the corrections
+automatically (And it does not matter if we call that UTC or CEST).
 
-Further, it is easier to work with one data frame. That is why me join all
+Further, it is easier to work with one data frame. That is why we join all
 three data frames into one. We make sure that we only use data if the date
 and time occur in all three data frames. For that, we round the time to the
-next 10 minutes.
+next 10 minutes. After that, we use inner_join and control the merge with
+the time column.
 
 At least, we change every -999 to NA.
 
@@ -285,15 +290,15 @@ zoll_combined <- zoll_combined|>
 
 We want a "feeling" for our data. Are there outliers? If yes, why there? To
 answer those questions we aggregate the 10 minute resolution to a 2 hour
-resolution and plot them. We can see that most of the anamolies are in a
+resolution and plot them. We can see that most of the anomalies are in a
 [-3, 3] °C range.
 
 We also see that we don't have many data. The gap between day 18 and 24
 indicates that we don't have a complete month. Further, the data
 variability /scattering is relatively high. We filter our data to determine
 those "outliers" because it does not seems like a expected variability. Now
-we know, the varibaility is in the night. Because we cannot explain it, we
-work with the whole dataset.
+we know, the variability is in the night. Because we cannot explain it, we
+work with the entire dataset.
 
 ```{r suspected_data, warning=FALSE, error=FALSE, message=FALSE}
 # We create a column-plot of the anomalies. 
@@ -339,12 +344,18 @@ if (!file.exists(name.of.file)){
   }else{}
 ```
 
+# Analysis
+
+Now we are ready for the analysis. First, we write some dynamic functions
+for the plots. After that, we use box-plot, density-plots and line-graphs
+to visualize the performance of the loggers. After that, we calculate the
+main statistic parameters and the errors. Because the problems are probably
+higher due to solar radiation through the day, we differentiate between 24h
+(entire day), 6-22 (day-time) and 22-6 (night-time).
+
 ## Data Split
 
-Because solar irradiance is probably the biggest problem, the error through
-the night is deeper than through the day. Therefore we analyze the whole
-day (24h), through the day (day-time 06:00 - 22:00) and through the night
-(night-time (22:00 - 06:00).
+We split our data in daytime and night-time
 
 ```{r split_data }
 zoll_day <- zoll_combined|>
@@ -362,12 +373,35 @@ zoll_night <- zoll_combined|>
 
 ## Functions
 
+Here, we create function for the plots (line-plot, box-plot and
+density-plot. We add ± standard deviation and a dot-dashed zero line
+because we want to determine whether the data is accurate or and precise.
+We use one function to create two different plots. All labs, title and
+subtitle are dynamically.
+
+You need a data set ,
+
+Default --\> Line plot
+
+Set whole = FALSE --\> scatter plot
+
+The second function is very dynamic:
+
+1.  Chose boxplot or density plot:
+    1.  Default: you get 24 hours
+    2.  set whole = False --\> you get day-time
+    3.  set whole & day = false --\> you get night time
+
+Here, you finde the function for the Line- and scatter plot
+
 ```{r load-functions}
 # We load our functions into the file
 source("../R/general/plot.functions.R")
 ```
 
 ## Line-plot
+
+Whole Day
 
 ```{r line-plots}
 # Line-plot new logger - reference station at Zollikofen 2m
@@ -393,7 +427,7 @@ overview_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 
 ### Boxplot 24h
 
-We plot a Boxplot for our 24h data set
+Whole day (default)
 
 ```{r}
 # Boxplot new logger - reference station at Zollikofen (2m)
@@ -434,6 +468,8 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ### Boxplot during day-time
 
+Day-time (set whole = FALSE)
+
 ```{r}
 # Boxplot new logger - reference station at Zollikofen 2m (daytime)
 box_2m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, 
@@ -472,6 +508,8 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FA
 
 ### Boxplot during night-time
 
+Night-time (set whole = FALSE & day = FALSE)
+
 ```{r}
 # Boxplot new logger - reference station at Zollikofen 2m (nighttime)
 boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, 
@@ -502,6 +540,8 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ### Density-Plot 24h
 
+Whole day (default)
+
 ```{r}
 # Densityplot new logger - reference station at Zollikofen (2m)
 densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8)
@@ -523,6 +563,8 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 ```
 
 ### Density-Plot during day-time
+
+Day-time (set whole = FALSE)
 
 ```{r}
 # Densityplot new logger - reference station at Zollikofen 2m (daytime)
@@ -563,6 +605,8 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole 
 
 ### Density-Plot during night-time
 
+Night-time (set whole = FALSE & day = FALSE)
+
 ```{r}
 # Densityplot new logger - reference station at Zollikofen 2m (nighttime)
 densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, 
@@ -594,9 +638,9 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ## Errors
 
-It is very complicated to calculate the errors. Unfortunately, I was not
-able to use any kind of a loop because the data are to diverse. This is why
-you see this mess...
+It is very complicate to calculate because the RMSE and MAE from the
+Metrics packages do not accept NAs. So we have to write a function
+manually...
 
 ```{r}
 VARIABLE <- c('24h, new_2 - ref', '24h, old_2 - ref',
@@ -608,7 +652,7 @@ VARIABLE <- c('24h, new_2 - ref', '24h, old_2 - ref',
            '24h, new_2 - old_2', '24h, new_3 - old_3',
            'day-time, new_2 - old_2', 'day-time, new_3 - old_3',
            'night-time, new_2 - old_2', 'night-time, new_3 - old_3')
-##########################################################################################################
+###############################################################################################
 RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_ref)^2, 
                           na.rm = TRUE)), 
                 digits = 3),
@@ -649,7 +693,7 @@ RMSE <- c(round(sqrt(mean((zoll_combined$temp_new_logger_2-zoll_combined$temp_re
                           na.rm = TRUE)), digits = 3),
           round(sqrt(mean((zoll_night$temp_new_logger_3-zoll_night$temp_old_logger_3)^2,
                           na.rm = TRUE)), digits = 3))
-##########################################################################################################
+###############################################################################################
 MAE <- c(round(mean(abs(zoll_combined$temp_new_logger_2-zoll_combined$temp_ref),
                     na.rm = TRUE), digits = 3),
           round(mean(abs(zoll_combined$temp_old_logger_2-zoll_combined$temp_ref), 
@@ -686,7 +730,7 @@ MAE <- c(round(mean(abs(zoll_combined$temp_new_logger_2-zoll_combined$temp_ref),
                      na.rm = TRUE), digits = 3),
           round(mean(abs(zoll_night$temp_new_logger_3-zoll_night$temp_old_logger_3), 
                      na.rm = TRUE),digits = 3))
-#########################################################################################################
+###############################################################################################
 BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
                    length(zoll_combined$temp_ref)), digits = 3), 
           round((sum(zoll_combined$temp_old_logger_2 - zoll_combined$temp_ref, na.rm = TRUE)/
@@ -734,12 +778,15 @@ BIAS <- c(round((sum(zoll_combined$temp_new_logger_2 - zoll_combined$temp_ref, n
 df <- cbind(VARIABLE, RMSE, MAE, BIAS)
 knitr::kable(df, caption = 'Table 1: Overview about error-metrics at Zollikofen')|>
     kableExtra::kable_classic_2(full_width = T)
-##########################################################################################################
+###############################################################################################
 # Generate Latex-code
 xtable(df, align = c('l', 'c', 'c', 'c', 'c'))
 ```
 
 ## Main paramater
+
+We calculate the main statistic parameter sfor the entire day (24h),
+daytime and nighttime. At the end, we also create a LATEX table
 
 ```{r}
 # Calculate the main statistic parameters
@@ -828,7 +875,7 @@ zoll_nighttime <- zoll_combined|>
          iqr = round(IQR(values,na.rm = TRUE), digits = 3),
          spread = round(max(values, na.rm = TRUE)-min(values, na.rm = TRUE), digits = 3),
          skewness = round(skewness(values, na.rm = TRUE), digits = 3))
-##########################################################################################################
+###############################################################################################
 # generate latex code
 xtable(zoll_24, align = c('l', rep('c', times = 11)))
 xtable(zoll_daytime, align = c('l', rep('c', times = 11)))
