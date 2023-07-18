@@ -1,5 +1,5 @@
 
-rmse_extracter <- function(mod, df_train, df_test, train = TRUE){
+rmse_extracter <- function(mod, df_train, df_test, train = FALSE){
   # add predictions to the data frames
   df_train <- df_train |>
     drop_na()
@@ -30,7 +30,7 @@ rmse_extracter <- function(mod, df_train, df_test, train = TRUE){
     return(rmse_test)}
 }
 
-rsq_extracter <- function(mod, df_train, df_test, train = TRUE){
+rsq_extracter <- function(mod, df_train, df_test, train = FALSE){
   # add predictions to the data frames
   df_train <- df_train |>
     drop_na()
