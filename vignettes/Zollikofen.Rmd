@@ -55,35 +55,35 @@ low cost device (LCD) at 2m and 3m (in Zollikofen).
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (AWS)
 
-+-----------------+------------------------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N               |
-+-----------------+------------------------------------------------------+
-| Altitude:       | 552.9 a.s.l.                                         |
-+-----------------+------------------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                            |
-|                 |                                                      |
-|                 | New Logger: UTC / GMT                                |
-+-----------------+------------------------------------------------------+
-| Logger Number:  | 98                                                   |
-+-----------------+------------------------------------------------------+
-| Code grafana    | 20d1b9040ad9                                         |
-+-----------------+------------------------------------------------------+
++-----------------+-------------------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N                |
++-----------------+-------------------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                                          |
++-----------------+-------------------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                             |
+|                 |                                                       |
+|                 | New Logger: UTC / GMT                                 |
++-----------------+-------------------------------------------------------+
+| Logger Number:  | 98                                                    |
++-----------------+-------------------------------------------------------+
+| Code grafana    | 20d1b9040ad9                                          |
++-----------------+-------------------------------------------------------+
 
 : Table 2: Metadata for the 2m LCD in Zollikofen
 
-+-----------------+------------------------------------------------------+
-| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N               |
-+-----------------+------------------------------------------------------+
-| Altitude:       | 552.9 a.s.l                                          |
-+-----------------+------------------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                            |
-|                 |                                                      |
-|                 | New Logger: UTC / GMT                                |
-+-----------------+------------------------------------------------------+
-| Logger Number   | 99                                                   |
-+-----------------+------------------------------------------------------+
-| Code grafana    | 135a449d34a1                                         |
-+-----------------+------------------------------------------------------+
++-----------------+-------------------------------------------------------+
+| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N                |
++-----------------+-------------------------------------------------------+
+| Altitude:       | 552.9 a.s.l                                           |
++-----------------+-------------------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                             |
+|                 |                                                       |
+|                 | New Logger: UTC / GMT                                 |
++-----------------+-------------------------------------------------------+
+| Logger Number   | 99                                                    |
++-----------------+-------------------------------------------------------+
+| Code grafana    | 135a449d34a1                                          |
++-----------------+-------------------------------------------------------+
 
 : Table 3: Metadata for the 3m LCD in Zollikofen
 
@@ -434,11 +434,6 @@ Whole day (default)
 box_2m_24h <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8,
                 ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
 
-pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_2_zoll.pdf',
-        width = 12 / 2.54, height = 10 / 2.54)
-box_2m_24h
-dev.off
-
 # Boxplot old logger - reference station at Zollikofen (2m)
 boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9,
                 ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
@@ -450,6 +445,13 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12,
 # Boxplot new logger - reference station at Zollikofen (3m)
 box_3m_24h <- boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10,
                 ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_2_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_2m_24h
+dev.off
+
+
 
 pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_3_zoll.pdf',
         width = 12 / 2.54, height = 10 / 2.54)
@@ -477,13 +479,19 @@ box_2m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2,
                               ylab = c('Temperature anomaly [K]'), 
                               xlab = c('Hour of the Day [hourly mean]'))
 
+boxplot_creater(zoll_combined, Anomaly_new_log_ref2, 
+                              colnbr = 8, whole = FALSE,
+                              ylab = c('Temperature anomaly [K]'), 
+                              xlab = c('Hour of the Day [hourly mean]'))
+# Boxplot old logger - reference station at Zollikofen 2m (daytime)
+boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
+
 pdf(file = '../analysis/graphs_report/Boxplot/boxplot_day_2_zoll.pdf',
         width = 12 / 2.54, height = 10 / 2.54)
 box_2m_day
 dev.off
 
-# Boxplot old logger - reference station at Zollikofen 2m (daytime)
-boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, whole = FALSE)
+
 
 # Boxplot new logger - old logger at Zollikofen 2m (daytime)
 boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12, whole = FALSE)
@@ -880,4 +888,21 @@ zoll_nighttime <- zoll_combined|>
 xtable(zoll_24, align = c('l', rep('c', times = 11)))
 xtable(zoll_daytime, align = c('l', rep('c', times = 11)))
 xtable(zoll_nighttime, align = c('l', rep('c', times = 11)))
+```
+
+# Appendix
+
+## Windspeed
+
+```{r}
+ZOLL|>
+  select(c(time, windspeed))|>
+  mutate(hour_of_the_day = lubridate::hour(time))|>
+  ggplot(aes(x = factor(hour_of_the_day), y = ZOLL$windspeed))+
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+                   outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01)+
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = 'Hour of the day', y = 'Windspeed [km/h]')+
+  theme_light()
 ```

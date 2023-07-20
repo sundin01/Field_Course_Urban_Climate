@@ -669,3 +669,20 @@ xtable::xtable(afu_24, align = c('l', rep('c', times = 11)))
 xtable::xtable(afu_daytime, align = c('l', rep('c', times = 11)))
 xtable::xtable(afu_nighttime, align = c('l', rep('c', times = 11)))
 ```
+
+# Appendix
+
+## Windspeed
+
+```{r}
+AFU_ref|>
+  select(c(time, WG))|>
+  mutate(hour_of_the_day = lubridate::hour(time))|>
+  ggplot(aes(x = factor(hour_of_the_day), y = AFU_ref$WG))+
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+                   outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01)+
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = 'Hour of the day', y = 'Windspeed [km/h]')+
+  theme_light()
+```
