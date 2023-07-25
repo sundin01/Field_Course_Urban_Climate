@@ -52,7 +52,7 @@ boxplot_creater <- function(database, yvar, title = c("title"), subtitle = c("Su
       stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
       geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
       geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red")+
-      labs(x = paste(xlab), y = paste(ylab)) +
+      labs(x = paste(xlab), y = paste(ylab), title = paste(title),subtitle = paste(subtitle)) +
       theme_light()
     return(plot_1)}
   else if(day == TRUE){
@@ -72,7 +72,7 @@ boxplot_creater <- function(database, yvar, title = c("title"), subtitle = c("Su
       stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
       geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
       geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red") +
-      labs(x = paste(xlab), y = paste(ylab)) +
+      labs(x = paste(xlab), y = paste(ylab), title = paste(title),subtitle = paste(subtitle)) +
       theme_light()
     pdf("../analysis/graphs_report/boxplot_day.pdf",
         width = 12 / 2.54, height = 10 / 2.54)
@@ -96,7 +96,7 @@ boxplot_creater <- function(database, yvar, title = c("title"), subtitle = c("Su
       stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
       geom_hline(yintercept =  0, size = 0.3, linetype = "dotdash")+
       geom_hline(yintercept =  mean, size = 0.3, linetype = "dotted", color = "red") +
-      labs(x = paste(xlab), y = paste(ylab)) +
+      labs(x = paste(xlab), y = paste(ylab), title = paste(title),subtitle = paste(subtitle)) +
       theme_light()
     pdf("../analysis/graphs_report/boxplot_night.pdf",
         width = 12 / 2.54, height = 10 / 2.54)

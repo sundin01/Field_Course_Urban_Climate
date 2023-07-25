@@ -43,47 +43,44 @@ Reference: "Zollikofen"
 We use the following automatic Weather Station (AWS) at Zollikofen and the
 low cost device (LCD) at 2m and 3m (in Zollikofen).
 
-+-----------------+-------------------------------------------------------+
-| Coordinates:    | 7°28' E, 46°59' N                                     |
-+-----------------+-------------------------------------------------------+
-| Altitude:       | 552 a.s.l.                                            |
-+-----------------+-------------------------------------------------------+
-| Time:           | UTC / GMT                                             |
-+-----------------+-------------------------------------------------------+
-| Source:         | Meteo Schweiz                                         |
-+-----------------+-------------------------------------------------------+
+|              |                   |
+|--------------|-------------------|
+| Coordinates: | 7°28' E, 46°59' N |
+| Altitude:    | 552 a.s.l.        |
+| Time:        | UTC / GMT         |
+| Source:      | Meteo Schweiz     |
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (AWS)
 
-+-----------------+-------------------------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N                |
-+-----------------+-------------------------------------------------------+
-| Altitude:       | 552.9 a.s.l.                                          |
-+-----------------+-------------------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                             |
-|                 |                                                       |
-|                 | New Logger: UTC / GMT                                 |
-+-----------------+-------------------------------------------------------+
-| Logger Number:  | 98                                                    |
-+-----------------+-------------------------------------------------------+
-| Code grafana    | 20d1b9040ad9                                          |
-+-----------------+-------------------------------------------------------+
++-----------------+-----------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++-----------------+-----------------------------------------+
+| Altitude:       | 552.9 a.s.l.                            |
++-----------------+-----------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2               |
+|                 |                                         |
+|                 | New Logger: UTC / GMT                   |
++-----------------+-----------------------------------------+
+| Logger Number:  | 98                                      |
++-----------------+-----------------------------------------+
+| Code grafana    | 20d1b9040ad9                            |
++-----------------+-----------------------------------------+
 
 : Table 2: Metadata for the 2m LCD in Zollikofen
 
-+-----------------+-------------------------------------------------------+
-| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N                |
-+-----------------+-------------------------------------------------------+
-| Altitude:       | 552.9 a.s.l                                           |
-+-----------------+-------------------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                             |
-|                 |                                                       |
-|                 | New Logger: UTC / GMT                                 |
-+-----------------+-------------------------------------------------------+
-| Logger Number   | 99                                                    |
-+-----------------+-------------------------------------------------------+
-| Code grafana    | 135a449d34a1                                          |
-+-----------------+-------------------------------------------------------+
++----------------+----------------------------------------+
+| Coordinates:   | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
++----------------+----------------------------------------+
+| Altitude:      | 552.9 a.s.l                            |
++----------------+----------------------------------------+
+| Time format:   | Old logger: UTC-2 / GMT-2              |
+|                |                                        |
+|                | New Logger: UTC / GMT                  |
++----------------+----------------------------------------+
+| Logger Number  | 99                                     |
++----------------+----------------------------------------+
+| Code grafana   | 135a449d34a1                           |
++----------------+----------------------------------------+
 
 : Table 3: Metadata for the 3m LCD in Zollikofen
 
@@ -223,8 +220,7 @@ zoll_ref$time <- as.POSIXct(zoll_ref$time, tz = "ETC/GMT")
 attr(zoll_ref$time, "tzone")
 
 zoll_ref <- zoll_ref|>
-  mutate('temp_ref' = as.numeric(tre200s0))|>
-  select('time', 'temp_ref')
+  mutate('temp_ref' = as.numeric(tre200s0))
 
 # we merge two data frames. Now there are only values which has the same date
 zoll_all <- inner_join(new_logger_zoll_2, new_logger_zoll_3, by = 'time')
@@ -430,33 +426,34 @@ overview_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 Whole day (default)
 
 ```{r}
-# Boxplot new logger - reference station at Zollikofen (2m)
-box_2m_24h <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8,
-                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
 
+pdf('../analysis/old.ref.zoll.pdf')
 # Boxplot old logger - reference station at Zollikofen (2m)
-boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9,
+boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, 
+                title = c('old logger (2m) vs. ref station (Zoll)'),
                 ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+dev.off()
 
+pdf('../analysis/new.ref.zoll.pdf')
+# Boxplot new logger - new logger at Zollikofen (2m)
+boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8,
+                title = c('new logger (2m) vs. ref station (Zoll)'),
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+dev.off()
+
+pdf('../analysis/old.new.zoll.pdf')
 # Boxplot new logger - old logger at Zollikofen (2m)
 boxplot_creater(zoll_combined, Anomaly_new_log_old_log2, colnbr = 12,
+                title = c('new logger vs. old logger (Zoll)'),
                 ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+dev.off()
+
+
+
 
 # Boxplot new logger - reference station at Zollikofen (3m)
 box_3m_24h <- boxplot_creater(zoll_combined, Anomaly_new_log_ref3, colnbr = 10,
                 ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
-
-pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_2_zoll.pdf',
-        width = 12 / 2.54, height = 10 / 2.54)
-box_2m_24h
-dev.off
-
-
-
-pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_3_zoll.pdf',
-        width = 12 / 2.54, height = 10 / 2.54)
-box_3m_24h
-dev.off
 
 # Boxplot old logger - reference station at Zollikofen (3m)
 boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11,
@@ -466,6 +463,24 @@ boxplot_creater(zoll_combined, Anomaly_old_log_ref3, colnbr = 11,
 boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
                 ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
 
+```
+
+```{r}
+
+# Boxplot new logger - reference station at Zollikofen (2m)
+box_2m_24h <- boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, 
+                title = c('old logger (2m) vs. ref station (Zoll)'),
+                ylab = c('Temperature Anomaly [K]'), xlab = c('Hour of the Day [h]'))
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_2_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_2m_24h
+dev.off
+
+pdf(file = '../analysis/graphs_report/Boxplot/boxplot_24_3_zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
+box_3m_24h
+dev.off
 ```
 
 ### Boxplot during day-time
@@ -895,14 +910,35 @@ xtable(zoll_nighttime, align = c('l', rep('c', times = 11)))
 ## Windspeed
 
 ```{r}
+
+ZOLL <- read.csv2("../data/data_REF_ZOLL.original.csv")
+
+# We change format of time and date for reference station in Zollikofen
+ZOLL$time <- strptime(ZOLL$time, format="%Y%m%d%H%M")
+ZOLL$time <- as.POSIXct(ZOLL$time, tz = "ETC/GMT")
+attr(ZOLL$time, "tzone")
+
+ZOLL <- ZOLL|>
+  mutate('windspeed' = as.numeric(as.character(unlist(ZOLL[,'fu3010z0']))),
+         'winddirection' = as.numeric(as.character(unlist(ZOLL[,'dkl010z0']))),
+         'precipitation' = as.numeric(as.character(unlist(ZOLL[,'rre150z0']))),
+         'humidity' = as.numeric(as.character(unlist(ZOLL[,'ure200s0']))),
+         'insolation' = as.numeric(as.character(unlist(ZOLL[,'gre000z0']))),
+         'temperature' = as.numeric(as.character(unlist(ZOLL[,'tre200s0']))))|>
+  select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
+
+
+pdf('../analysis/graphs_report/windspeed.zoll.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
 ZOLL|>
   select(c(time, windspeed))|>
   mutate(hour_of_the_day = lubridate::hour(time))|>
-  ggplot(aes(x = factor(hour_of_the_day), y = ZOLL$windspeed))+
+  ggplot(aes(x = factor(hour_of_the_day), y = windspeed))+
   geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
                    outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
   geom_jitter(width = 0, alpha = 0.01)+
   stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
   labs(x = 'Hour of the day', y = 'Windspeed [km/h]')+
   theme_light()
+dev.off()
 ```

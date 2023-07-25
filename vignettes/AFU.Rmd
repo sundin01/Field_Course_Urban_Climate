@@ -38,32 +38,29 @@ Reference: "Amt für Umwelt (AFU)"
 We use the following automatic Weather Station (AWS) at AFU and the low
 cost device (LCD) at AFU.
 
-+-----------------+-------------------------------------------------------+
-| Coordinates:    | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N               |
-+-----------------+-------------------------------------------------------+
-| Altitude:       | 554.5 a.s.l.                                          |
-+-----------------+-------------------------------------------------------+
-| Time:           | UTC-2 / GMT-2                                         |
-+-----------------+-------------------------------------------------------+
-| Source:         | AFU (Amt für Umwelt der Stadt Bern)                   |
-+-----------------+-------------------------------------------------------+
+|              |                                         |
+|--------------|-----------------------------------------|
+| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
+| Altitude:    | 554.5 a.s.l.                            |
+| Time:        | UTC-2 / GMT-2                           |
+| Source:      | AFU (Amt für Umwelt der Stadt Bern)     |
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+-----------------+-------------------------------------------------------+
-| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N               |
-+-----------------+-------------------------------------------------------+
-| Altitude:       | 554.5 a.s.l.                                          |
-+-----------------+-------------------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                             |
-|                 |                                                       |
-|                 | New Logger: UTC / GMT                                 |
-+-----------------+-------------------------------------------------------+
-| Logger Number:  | 83                                                    |
-+-----------------+-------------------------------------------------------+
-| Code grafana    | d6e2769def35                                          |
-+-----------------+-------------------------------------------------------+
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
++-----------------+------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 83                                       |
++-----------------+------------------------------------------+
+| Code grafana    | d6e2769def35                             |
++-----------------+------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger at AFU
 
@@ -386,7 +383,8 @@ Whole day
 
 ```{r scatter_plot}
 # Scatter-plot new logger - reference station at AFU
-overview_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE)
+overview_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6, whole = FALSE, 
+                 title = c('New logger vs. ref station (AFU)'))
 # scatterplot old logger - reference station at AFU
 overview_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7, whole = FALSE)
 # scatterplot new logger - old logger at AFU
@@ -401,13 +399,22 @@ Whole day (default)
 
 ```{r boxplot, warning=FALSE, error=FALSE, message=FALSE}
 # Boxplot new logger - reference station at AFU
-boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6)
+pdf('../analysis/new.ref.afu.pdf')
+boxplot_creater(AFU_combined, Anomaly_new_log_ref, colnbr = 6,
+                title = c('New logger vs. ref station (AFU)'))
+dev.off()
 
+pdf('../analysis/old.ref.afu.pdf')
 # Boxplot old logger - reference station at AFU
-boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7)
+boxplot_creater(AFU_combined, Anomaly_old_log_ref, colnbr = 7,
+                title = c('old logger vs. ref station (AFU)'))
+dev.off()
 
+pdf('../analysis/new.old.afu.pdf')
 # Boxplot new logger - old logger at AFU
-boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8)
+boxplot_creater(AFU_combined, Anomaly_new_log_old_log, colnbr = 8,
+                title = c('New logger vs. old Logger (AFU)'))
+dev.off()
 ```
 
 ### Boxplot during day-time
@@ -675,14 +682,19 @@ xtable::xtable(afu_nighttime, align = c('l', rep('c', times = 11)))
 ## Windspeed
 
 ```{r}
+
+pdf('../analysis/graphs_report/windspeed.afu.pdf',
+        width = 12 / 2.54, height = 10 / 2.54)
 AFU_ref|>
   select(c(time, WG))|>
+  mutate(WG = WG * 3.6)|>
   mutate(hour_of_the_day = lubridate::hour(time))|>
-  ggplot(aes(x = factor(hour_of_the_day), y = AFU_ref$WG))+
+  ggplot(aes(x = factor(hour_of_the_day), y = WG))+
   geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
                    outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
   geom_jitter(width = 0, alpha = 0.01)+
   stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
   labs(x = 'Hour of the day', y = 'Windspeed [km/h]')+
   theme_light()
+dev.off()
 ```
