@@ -48,19 +48,19 @@ cost device (LCD) at AFU.
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+-----------------+------------------------------------------+
-| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
-+-----------------+------------------------------------------+
-| Altitude:       | 554.5 a.s.l.                             |
-+-----------------+------------------------------------------+
-| Time format:    | Old logger: UTC-2 / GMT-2                |
-|                 |                                          |
-|                 | New Logger: UTC / GMT                    |
-+-----------------+------------------------------------------+
-| Logger Number:  | 83                                       |
-+-----------------+------------------------------------------+
-| Code grafana    | d6e2769def35                             |
-+-----------------+------------------------------------------+
++-----------------+-------------------------------------------+
+| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N   |
++-----------------+-------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                              |
++-----------------+-------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                 |
+|                 |                                           |
+|                 | New Logger: UTC / GMT                     |
++-----------------+-------------------------------------------+
+| Logger Number:  | 83                                        |
++-----------------+-------------------------------------------+
+| Code grafana    | d6e2769def35                              |
++-----------------+-------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger at AFU
 
@@ -682,6 +682,18 @@ xtable::xtable(afu_nighttime, align = c('l', rep('c', times = 11)))
 ## Windspeed
 
 ```{r}
+
+AFU_ref|>
+  select(c(time, WG))|>
+  mutate(WG = WG * 3.6)|>
+  mutate(hour_of_the_day = lubridate::hour(time))|>
+  ggplot(aes(x = factor(hour_of_the_day), y = WG))+
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+                   outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01)+
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = 'Hour of the day', y = 'Windspeed [km/h]')+
+  theme_light()
 
 pdf('../analysis/graphs_report/windspeed.afu.pdf',
         width = 12 / 2.54, height = 10 / 2.54)

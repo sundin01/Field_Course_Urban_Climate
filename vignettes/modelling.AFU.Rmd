@@ -37,28 +37,31 @@ Reference: "modelling AFU"
 
 # Introduction
 
-|              |                                         |
-|--------------|-----------------------------------------|
-| Coordinates: | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
-| Altitude:    | 554.5 a.s.l.                            |
-| Time:        | UTC-2 / GMT-2                           |
-| Source:      | AFU (Amt für Umwelt der Stadt Bern)     |
++-----------------+------------------------------------------+
+| Coordinates:    | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
++-----------------+------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time:           | UTC-2 / GMT-2                            |
++-----------------+------------------------------------------+
+| Source:         | AFU (Amt für Umwelt der Stadt Bern)      |
++-----------------+------------------------------------------+
 
 : Table 1: Metadata for AFU (reference station)
 
-+----------------+-----------------------------------------+
-| Altitude:      | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N |
-+----------------+-----------------------------------------+
-| Altitude:      | 554.5 a.s.l.                            |
-+----------------+-----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2               |
-|                |                                         |
-|                | New Logger: UTC / GMT                   |
-+----------------+-----------------------------------------+
-| Logger Number: | 83                                      |
-+----------------+-----------------------------------------+
-| Code grafana   | d6e2769def35                            |
-+----------------+-----------------------------------------+
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 45,252'' E ; 46.° 57' 47,196'' N  |
++-----------------+------------------------------------------+
+| Altitude:       | 554.5 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 83                                       |
++-----------------+------------------------------------------+
+| Code grafana    | d6e2769def35                             |
++-----------------+------------------------------------------+
 
 : Table 2: Metadata for the 2m Logger at AFU
 
@@ -125,7 +128,7 @@ AFU <- AFU|>
 we create a stepwise regression because we want to know which model is
 properly the best fit. The model with the lowest AIC will be preferred.
 
-```{r}
+```{r stepwise-regression}
 source('../Field_Course_Urban_Climate/R/stepwise/stepforward.R')
 
 multivariate.reg.model(AFU, c(1, 2))
@@ -279,7 +282,7 @@ are not such files in the folder. We also exclude LCD 52 (Umland Bümpliz)
 because the LCD is not in use. That means we analyse only 20/23
 locations...
 
-```{r}
+```{r read-multiple-csv-files}
 # we read all the file names (116 files)
 list_of_files <- list.files(path = '../Field_Course_Urban_Climate/data/data_logger_new/',
                             recursive = TRUE,
@@ -323,7 +326,7 @@ df_new_loggers <- df_new_loggers |>
 
 ### Control-Plot
 
-```{r}
+```{r control-plot}
 # We create a control-plot to check wheter we have 22 locations
 df_new_loggers|>
   group_by(name)|>
@@ -336,7 +339,7 @@ df_new_loggers|>
 
 ## KNN-models and lm-models for all 20 locations at once
 
-```{r}
+```{r spatial-upscale}
 # We change format of time and date for reference station in Zollikofen
 df_new_loggers$time <- strptime(df_new_loggers$time , format = "%Y-%m-%d %H:%M")
 df_new_loggers$time <- as.POSIXct(df_new_loggers$time, tz = "ETC/GMT-2")
@@ -389,7 +392,7 @@ xtable(overview, align = c('l','l', 'c', 'c', 'c', 'c', 'c', 'c'))
 
 ## Evaluation of spatial upscale
 
-```{r}
+```{r evaluation-upscale}
 # create a for loop --> it will create 40 plots!!
 for (i in filter){
   dataset <- c(dataset, i)

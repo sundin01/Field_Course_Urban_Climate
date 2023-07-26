@@ -52,35 +52,35 @@ low cost device (LCD) at 2m and 3m (in Zollikofen).
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (AWS)
 
++-----------------+------------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N   |
++-----------------+------------------------------------------+
+| Altitude:       | 552.9 a.s.l.                             |
++-----------------+------------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2                |
+|                 |                                          |
+|                 | New Logger: UTC / GMT                    |
++-----------------+------------------------------------------+
+| Logger Number:  | 98                                       |
++-----------------+------------------------------------------+
+| Code grafana    | 20d1b9040ad9                             |
++-----------------+------------------------------------------+
+
+: Table 2: Metadata for the 2m LCD in Zollikofen
+
 +-----------------+-----------------------------------------+
-| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
+| Coordinates:    | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
 +-----------------+-----------------------------------------+
-| Altitude:       | 552.9 a.s.l.                            |
+| Altitude:       | 552.9 a.s.l                             |
 +-----------------+-----------------------------------------+
 | Time format:    | Old logger: UTC-2 / GMT-2               |
 |                 |                                         |
 |                 | New Logger: UTC / GMT                   |
 +-----------------+-----------------------------------------+
-| Logger Number:  | 98                                      |
+| Logger Number   | 99                                      |
 +-----------------+-----------------------------------------+
-| Code grafana    | 20d1b9040ad9                            |
+| Code grafana    | 135a449d34a1                            |
 +-----------------+-----------------------------------------+
-
-: Table 2: Metadata for the 2m LCD in Zollikofen
-
-+----------------+----------------------------------------+
-| Coordinates:   | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l                            |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number  | 99                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 135a449d34a1                           |
-+----------------+----------------------------------------+
 
 : Table 3: Metadata for the 3m LCD in Zollikofen
 
@@ -465,7 +465,7 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 ```
 
-```{r}
+```{r boxplot-24}
 
 # Boxplot new logger - reference station at Zollikofen (2m)
 box_2m_24h <- boxplot_creater(zoll_combined, Anomaly_old_log_ref2, colnbr = 9, 
@@ -487,7 +487,7 @@ dev.off
 
 Day-time (set whole = FALSE)
 
-```{r}
+```{r boxplot-daytime}
 # Boxplot new logger - reference station at Zollikofen 2m (daytime)
 box_2m_day <- boxplot_creater(zoll_combined, Anomaly_new_log_ref2, 
                               colnbr = 8, whole = FALSE,
@@ -533,7 +533,7 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole = FA
 
 Night-time (set whole = FALSE & day = FALSE)
 
-```{r}
+```{r boxplot-nighttime}
 # Boxplot new logger - reference station at Zollikofen 2m (nighttime)
 boxplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, 
                 whole = FALSE, day = FALSE)
@@ -565,7 +565,7 @@ boxplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13,
 
 Whole day (default)
 
-```{r}
+```{r density-24}
 # Densityplot new logger - reference station at Zollikofen (2m)
 densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8)
 
@@ -589,7 +589,7 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13)
 
 Day-time (set whole = FALSE)
 
-```{r}
+```{r density-daytime}
 # Densityplot new logger - reference station at Zollikofen 2m (daytime)
 density_2m_day <- densityplot_creater(zoll_combined, Anomaly_new_log_ref2, 
                     colnbr = 8, whole = FALSE,
@@ -630,7 +630,7 @@ densityplot_creater(zoll_combined, Anomaly_new_log_old_log3, colnbr = 13, whole 
 
 Night-time (set whole = FALSE & day = FALSE)
 
-```{r}
+```{r density-nighttime}
 # Densityplot new logger - reference station at Zollikofen 2m (nighttime)
 densityplot_creater(zoll_combined, Anomaly_new_log_ref2, colnbr = 8, 
                     whole = FALSE, day = FALSE)
@@ -665,7 +665,7 @@ It is very complicate to calculate because the RMSE and MAE from the
 Metrics packages do not accept NAs. So we have to write a function
 manually...
 
-```{r}
+```{r error-and-biases}
 VARIABLE <- c('24h, new_2 - ref', '24h, old_2 - ref',
            '24h, new_3 - ref', '24h, old_3 - ref',
            'day-time, new_2 - ref', 'day-time, old_2 - ref', 
@@ -811,7 +811,7 @@ xtable(df, align = c('l', 'c', 'c', 'c', 'c'))
 We calculate the main statistic parameter sfor the entire day (24h),
 daytime and nighttime. At the end, we also create a LATEX table
 
-```{r}
+```{r main-statsistic-parameter}
 # Calculate the main statistic parameters
 # for 24h
 zoll_24 <- data.frame(zoll_combined|>
@@ -909,7 +909,7 @@ xtable(zoll_nighttime, align = c('l', rep('c', times = 11)))
 
 ## Windspeed
 
-```{r}
+```{r windspeed-zollikofen}
 
 ZOLL <- read.csv2("../data/data_REF_ZOLL.original.csv")
 
@@ -927,6 +927,16 @@ ZOLL <- ZOLL|>
          'temperature' = as.numeric(as.character(unlist(ZOLL[,'tre200s0']))))|>
   select(c('time', 'temperature', 'humidity', 'insolation', 'windspeed', 'winddirection'))
 
+ZOLL|>
+  select(c(time, windspeed))|>
+  mutate(hour_of_the_day = lubridate::hour(time))|>
+  ggplot(aes(x = factor(hour_of_the_day), y = windspeed))+
+  geom_boxplot(fill = "skyblue", alpha = 0.5, lwd = 0.3, width = 0.5,
+                   outlier.color = "red", outlier.shape = 17, outlier.size = 2)+
+  geom_jitter(width = 0, alpha = 0.01)+
+  stat_boxplot(geom = "errorbar", size = 0.3, width = 0.3)+
+  labs(x = 'Hour of the day', y = 'Windspeed [km/h]')+
+  theme_light()
 
 pdf('../analysis/graphs_report/windspeed.zoll.pdf',
         width = 12 / 2.54, height = 10 / 2.54)

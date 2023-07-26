@@ -33,45 +33,48 @@ Reference: "Spatial Upscaling"
 
 # Introduction
 
-|              |                   |
-|--------------|-------------------|
-| Coordinates: | 7°28' E, 46°59' N |
-| Altitude:    | 552 a.s.l.        |
-| Time:        | UTC / GMT         |
-| Source:      | Meteo Schweiz     |
++-----------------+-----------------------------------------+
+| Coordinates:    | 7°28' E, 46°59' N                       |
++-----------------+-----------------------------------------+
+| Altitude:       | 552 a.s.l.                              |
++-----------------+-----------------------------------------+
+| Time:           | UTC / GMT                               |
++-----------------+-----------------------------------------+
+| Source:         | Meteo Schweiz                           |
++-----------------+-----------------------------------------+
 
 : Table 1: Metadata for the MeteoSchweiz station in Zollikofen (reference
 station)
 
-+----------------+----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                           |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number: | 98                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 20d1b9040ad9                           |
-+----------------+----------------------------------------+
++-----------------+-----------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++-----------------+-----------------------------------------+
+| Altitude:       | 552.9 a.s.l.                            |
++-----------------+-----------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2               |
+|                 |                                         |
+|                 | New Logger: UTC / GMT                   |
++-----------------+-----------------------------------------+
+| Logger Number:  | 98                                      |
++-----------------+-----------------------------------------+
+| Code grafana    | 20d1b9040ad9                            |
++-----------------+-----------------------------------------+
 
 : Table 2: Metadata for the 2m Logger in Zollikofen
 
-+----------------+----------------------------------------+
-| Altitude:      | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N |
-+----------------+----------------------------------------+
-| Altitude:      | 552.9 a.s.l.                           |
-+----------------+----------------------------------------+
-| Time format:   | Old logger: UTC-2 / GMT-2              |
-|                |                                        |
-|                | New Logger: UTC / GMT                  |
-+----------------+----------------------------------------+
-| Logger Number: | 99                                     |
-+----------------+----------------------------------------+
-| Code grafana   | 135a449d34a1                           |
-+----------------+----------------------------------------+
++-----------------+-----------------------------------------+
+| Altitude:       | 7° 27' 50,65'' E ; 46.° 59' 26,844'' N  |
++-----------------+-----------------------------------------+
+| Altitude:       | 552.9 a.s.l.                            |
++-----------------+-----------------------------------------+
+| Time format:    | Old logger: UTC-2 / GMT-2               |
+|                 |                                         |
+|                 | New Logger: UTC / GMT                   |
++-----------------+-----------------------------------------+
+| Logger Number:  | 99                                      |
++-----------------+-----------------------------------------+
+| Code grafana    | 135a449d34a1                            |
++-----------------+-----------------------------------------+
 
 : Table 3: Metadata for the 3m Logger in Zollikofen
 
@@ -137,7 +140,7 @@ ZOLL <- ZOLL|>
 we create a stepwise regression because we want to know which model is
 properly the best fit. The model with the lowest AIC will be preferred.
 
-```{r}
+```{r stepwise-regression}
 source('../Field_Course_Urban_Climate/R/stepwise/stepforward.R')
 
 multivariate.reg.model(ZOLL, c(1, 2, 3))
@@ -191,7 +194,7 @@ model.ZOLL.lm.approach <- lm.model.a(ZOLL_train_approach)
 We calculate a model with the target 'temperature' and humidity as
 predictor.
 
-```{r}
+```{r simple-model}
 # We load our functions
 source("../Field_Course_Urban_Climate/R/ml_functions/knn.evaluation.R")
 source("../Field_Course_Urban_Climate/R/ml_functions/lm.and.knn.model.R")
@@ -379,7 +382,7 @@ df_new_loggers|>
 
 ## KNN-models and lm-models for all 20 locations at once
 
-```{r}
+```{r spatial-upscale}
 # We change format of time and date for reference station in Zollikofen
 df_new_loggers$time <- strptime(df_new_loggers$time , format = "%Y-%m-%d %H:%M")
 df_new_loggers$time <- as.POSIXct(df_new_loggers$time, tz = "ETC/GMT-2")
@@ -432,7 +435,7 @@ xtable(overview, align = c('l','l', 'c', 'c', 'c', 'c', 'c', 'c'))
 
 ## Evaluation of spatial upscale
 
-```{r}
+```{r evaluation-upsale}
 # We change format of time and date for reference station in Zollikofen
 df_new_loggers$time <- strptime(df_new_loggers$time , format = "%Y-%m-%d %H:%M")
 df_new_loggers$time <- as.POSIXct(df_new_loggers$time, tz = "ETC/GMT-2")
